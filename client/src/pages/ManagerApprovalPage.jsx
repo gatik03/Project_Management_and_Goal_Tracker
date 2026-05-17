@@ -1,6 +1,7 @@
 import { CheckCircle2, RefreshCw, Save, UsersRound, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
+import { ManagerQuarterlyPanel } from "../components/ManagerQuarterlyPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { apiClient } from "../lib/api";
 
@@ -18,6 +19,15 @@ export function ManagerApprovalPage({ user }) {
   const approvedCount = goals.filter((goal) => goal.status === "APPROVED" || goal.status === "LOCKED").length;
   const reworkCount = goals.filter((goal) => goal.status === "REWORK_REQUIRED").length;
   const employeeCount = useMemo(() => new Set(goals.map((goal) => goal.employee.id)).size, [goals]);
+  const employeeWeightTotals = useMemo(() => {
+    return goals.reduce((totals, goal) => {
+      const weightage = Number(draftEdits[goal.id]?.weightage ?? goal.weightage);
+      return {
+        ...totals,
+        [goal.employee.id]: (totals[goal.employee.id] ?? 0) + weightage
+      };
+    }, {});
+  }, [draftEdits, goals]);
 
   async function loadGoals() {
     const { data } = await apiClient.get("/manager/goals");
@@ -65,6 +75,14 @@ export function ManagerApprovalPage({ user }) {
     setMessage("");
 
     try {
+      const goal = goals.find((item) => item.id === goalId);
+      const proposedTotal = employeeWeightTotals[goal.employee.id] ?? 0;
+
+      if (proposedTotal > 100) {
+        setError(`Total weightage for ${goal.employee.name} cannot exceed 100%. Current edited total is ${proposedTotal}%.`);
+        return;
+      }
+
       const edit = draftEdits[goalId];
       const { data } = await apiClient.patch(`/manager/goals/${goalId}`, {
         target: edit.target,
@@ -173,6 +191,9 @@ export function ManagerApprovalPage({ user }) {
                       <td className="px-5 py-4">
                         <p className="font-semibold text-corporate-navy">{goal.employee.name}</p>
                         <p className="mt-1 text-xs text-slate-500">{goal.employee.title}</p>
+                        <p className={`mt-2 text-xs font-semibold ${employeeWeightTotals[goal.employee.id] > 100 ? "text-red-700" : "text-slate-500"}`}>
+                          Total: {employeeWeightTotals[goal.employee.id] ?? 0}%
+                        </p>
                       </td>
                       <td className="max-w-xs px-5 py-4">
                         <p className="font-semibold text-corporate-navy">{goal.title}</p>
@@ -188,7 +209,11 @@ export function ManagerApprovalPage({ user }) {
                       </td>
                       <td className="px-5 py-4">
                         <input
-                          className="w-24 rounded-lg border border-corporate-line px-3 py-2 text-sm outline-none transition focus:border-corporate-blue focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
+                          className={`w-24 rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500 ${
+                            employeeWeightTotals[goal.employee.id] > 100
+                              ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                              : "border-corporate-line focus:border-corporate-blue focus:ring-blue-100"
+                          }`}
                           disabled={!isEditable}
                           max="100"
                           min="10"
@@ -213,7 +238,7 @@ export function ManagerApprovalPage({ user }) {
                           <button
                             aria-label="Save inline edits"
                             className="rounded-lg border border-corporate-line p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-corporate-blue disabled:cursor-not-allowed disabled:text-slate-300"
-                            disabled={!isEditable}
+                            disabled={!isEditable || employeeWeightTotals[goal.employee.id] > 100}
                             onClick={() => saveInlineEdit(goal.id)}
                             type="button"
                           >
@@ -247,6 +272,8 @@ export function ManagerApprovalPage({ user }) {
           </div>
         )}
       </section>
+
+      <ManagerQuarterlyPanel />
     </div>
   );
 }

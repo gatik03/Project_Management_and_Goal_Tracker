@@ -190,6 +190,26 @@ export async function updateManagerGoalFields(managerId, goalId, payload) {
     throw createHttpError("Only submitted or rework-required goals can be adjusted by managers");
   }
 
+  if (payload.weightage !== undefined) {
+    const employeeGoals = await prisma.goal.findMany({
+      where: {
+        employeeId: existingGoal.employeeId,
+        status: { not: "DRAFT" }
+      },
+      select: {
+        id: true,
+        weightage: true
+      }
+    });
+    const proposedTotal = employeeGoals.reduce((total, goal) => {
+      return total + (goal.id === goalId ? payload.weightage : goal.weightage);
+    }, 0);
+
+    if (proposedTotal > 100) {
+      throw createHttpError(`Total team member goal weightage cannot exceed 100%. Proposed total is ${proposedTotal}%.`);
+    }
+  }
+
   const goal = await prisma.goal.update({
     where: { id: goalId },
     data: payload,

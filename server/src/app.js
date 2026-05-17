@@ -6,6 +6,8 @@ import morgan from "morgan";
 import { allowedOrigins } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { employeeCheckInRouter } from "./modules/checkins/employee-checkin.routes.js";
+import { managerCheckInRouter } from "./modules/checkins/manager-checkin.routes.js";
 import { goalRouter } from "./modules/goals/goal.routes.js";
 import { managerGoalRouter } from "./modules/goals/manager-goal.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
@@ -33,7 +35,9 @@ export function createApp() {
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/employee/goals", goalRouter);
+  app.use("/api/employee/check-ins", employeeCheckInRouter);
   app.use("/api/manager", managerGoalRouter);
+  app.use("/api/manager/check-ins", managerCheckInRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

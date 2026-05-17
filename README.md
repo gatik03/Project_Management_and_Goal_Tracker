@@ -64,6 +64,19 @@ Phase 4 adds the employee-to-manager approval workflow:
 
 Admin approval controls, quarterly check-ins, reporting, and audit logs are not implemented in this phase.
 
+## Phase 5 Scope
+
+Phase 5 adds quarterly check-ins:
+
+- Employees can update quarterly progress for submitted, approved, or locked goals.
+- Each update tracks planned target, actual achievement, status, and an employee note.
+- Status options are `NOT_STARTED`, `ON_TRACK`, and `COMPLETED`.
+- Managers can review direct-report quarterly updates and add comments.
+- Employee and manager dashboards include quarterly timeline cards and progress bars.
+- Progress calculations are centralized in the backend progress engine.
+
+Reporting and audit logs are not implemented in this phase.
+
 ## Folder Structure
 
 ```text
@@ -197,6 +210,45 @@ POST  /api/manager/goals/:goalId/approve   Approve and lock a goal
 POST  /api/manager/goals/:goalId/reject    Return a goal for rework
 ```
 
+## Phase 5 Quarterly API Structure
+
+Employee APIs:
+
+```text
+GET /api/employee/check-ins
+PUT /api/employee/check-ins/:goalId/:quarter
+```
+
+Manager APIs:
+
+```text
+GET  /api/manager/check-ins
+POST /api/manager/check-ins/:checkInId/comment
+```
+
+## Phase 5 Progress Formulas
+
+Progress is calculated in `server/src/modules/checkins/progress.engine.js`.
+
+```text
+Achievement / Target % = actualAchievement / plannedTarget * 100
+Target / Achievement = plannedTarget / actualAchievement
+```
+
+Zero-based logic:
+
+- If planned target is `0` and actual achievement is `0`, progress is `0%`.
+- If planned target is `0` and actual achievement is greater than `0`, progress is treated as `100%`.
+- If actual achievement is `0`, target-to-achievement ratio is `0` unless planned target is also `0`.
+- Progress bars cap visual progress at `100%`, while the numeric percentage can show overachievement.
+
+Timeline completion logic:
+
+```text
+completionPercent = completedQuarters / 4 * 100
+isComplete = all 4 quarters are COMPLETED
+```
+
 ## Goal Validation Logic
 
 - Each goal must include title, description, thrust area, UoM type, target, weightage, and deadline.
@@ -211,11 +263,23 @@ POST  /api/manager/goals/:goalId/reject    Return a goal for rework
 ```text
 Manager User 1 ─── * Employee User
 Employee User 1 ─── * Goal
+Goal 1 ─── * QuarterlyCheckIn
 ```
 
 Each employee may have a `managerId`. Manager goal queries are scoped through that relationship, so a manager can only view and act on goals owned by direct reports.
 
 Each goal belongs to one employee through `Goal.employeeId`. Deleting a user cascades to that user's goals. Goals are indexed by `employeeId`, `status`, and reviewer fields for efficient dashboards.
+
+Each quarterly check-in belongs to one goal. The database enforces one check-in per goal per quarter with a unique `(goalId, quarter)` constraint.
+
+## Phase 5 Quarterly Workflow
+
+1. Employee submits a 100% goal plan.
+2. Quarterly check-in cards become available for submitted, approved, or locked goals.
+3. Employee updates planned target, actual achievement, status, and optional note for each quarter.
+4. Backend calculates progress and timeline completion.
+5. Manager reviews direct-report quarterly updates.
+6. Manager adds comments to created quarterly check-ins.
 
 ## Phase 4 State Transitions
 

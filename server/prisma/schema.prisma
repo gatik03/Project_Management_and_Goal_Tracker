@@ -29,6 +29,19 @@ enum UomType {
   TEXT
 }
 
+enum Quarter {
+  Q1
+  Q2
+  Q3
+  Q4
+}
+
+enum CheckInStatus {
+  NOT_STARTED
+  ON_TRACK
+  COMPLETED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -66,7 +79,26 @@ model Goal {
   reviewedBy   User?     @relation("ReviewedGoals", fields: [reviewedById], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  checkIns    QuarterlyCheckIn[]
 
   @@index([employeeId, status])
   @@index([reviewedById])
+}
+
+model QuarterlyCheckIn {
+  id                String        @id @default(uuid())
+  quarter           Quarter
+  plannedTarget     Float
+  actualAchievement Float
+  status            CheckInStatus @default(NOT_STARTED)
+  employeeNote      String?
+  managerComment    String?
+  reviewedAt        DateTime?
+  goalId            String
+  goal              Goal          @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([goalId, quarter])
+  @@index([quarter, status])
 }
