@@ -49,6 +49,21 @@ Phase 3 adds employee goal creation only:
 
 Manager approvals, admin goal controls, check-ins, reports, and audit logs are not implemented in this phase.
 
+## Phase 4 Scope
+
+Phase 4 adds the employee-to-manager approval workflow:
+
+- Employees can submit editable goals when total weightage is exactly `100%`.
+- Submitted goals become read-only for employees.
+- Managers can view submitted goals for their direct reports.
+- Managers can edit target and weightage inline before approval.
+- Managers can approve goals.
+- Managers can reject goals and send them back as `REWORK_REQUIRED`.
+- Approved goals store a lock timestamp and cannot be edited by employees.
+- Approval status badges are shown across employee and manager views.
+
+Admin approval controls, quarterly check-ins, reporting, and audit logs are not implemented in this phase.
+
 ## Folder Structure
 
 ```text
@@ -171,6 +186,17 @@ DELETE /api/employee/goals/:goalId  Delete a draft goal
 POST   /api/employee/goals/submit   Submit the draft goal plan
 ```
 
+## Phase 4 Manager API Structure
+
+All manager APIs are protected by `requireAuth` and `requireRole("MANAGER")`.
+
+```text
+GET   /api/manager/goals                   List direct-report submitted goals
+PATCH /api/manager/goals/:goalId           Inline edit target and/or weightage
+POST  /api/manager/goals/:goalId/approve   Approve and lock a goal
+POST  /api/manager/goals/:goalId/reject    Return a goal for rework
+```
+
 ## Goal Validation Logic
 
 - Each goal must include title, description, thrust area, UoM type, target, weightage, and deadline.
@@ -183,10 +209,34 @@ POST   /api/employee/goals/submit   Submit the draft goal plan
 ## Database Relationships
 
 ```text
-User 1 ─── * Goal
+Manager User 1 ─── * Employee User
+Employee User 1 ─── * Goal
 ```
 
-Each goal belongs to one employee through `Goal.employeeId`. Deleting a user cascades to that user's goals. Goals are indexed by `employeeId` and `status` for efficient employee dashboard queries.
+Each employee may have a `managerId`. Manager goal queries are scoped through that relationship, so a manager can only view and act on goals owned by direct reports.
+
+Each goal belongs to one employee through `Goal.employeeId`. Deleting a user cascades to that user's goals. Goals are indexed by `employeeId`, `status`, and reviewer fields for efficient dashboards.
+
+## Phase 4 State Transitions
+
+```text
+DRAFT -> SUBMITTED
+SUBMITTED -> APPROVED
+SUBMITTED -> REWORK_REQUIRED
+REWORK_REQUIRED -> SUBMITTED
+APPROVED -> REWORK_REQUIRED
+```
+
+`APPROVED` goals are treated as locked because `lockedAt` is set during approval. The `LOCKED` status exists in the database model for future hard-lock workflow phases.
+
+## Phase 4 Security Checks
+
+- Employees can create goals only while their plan is editable.
+- Employees can edit/delete only `DRAFT` or `REWORK_REQUIRED` goals.
+- Employees cannot edit `SUBMITTED`, `APPROVED`, or `LOCKED` goals.
+- Managers can see only goals for users where `User.managerId` equals the manager's id.
+- Managers can inline edit only `SUBMITTED` or `REWORK_REQUIRED` goals.
+- Managers cannot approve or reject goals outside their direct-report team.
 
 ## Architecture Notes
 

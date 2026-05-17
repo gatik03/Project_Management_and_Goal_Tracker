@@ -16,6 +16,9 @@ enum Role {
 enum GoalStatus {
   DRAFT
   SUBMITTED
+  REWORK_REQUIRED
+  APPROVED
+  LOCKED
 }
 
 enum UomType {
@@ -35,9 +38,13 @@ model User {
   department   String
   title        String
   isActive     Boolean  @default(true)
+  managerId    String?
+  manager      User?    @relation("ManagerReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports      User[]   @relation("ManagerReports")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  goals        Goal[]
+  goals        Goal[]   @relation("EmployeeGoals")
+  reviewedGoals Goal[]  @relation("ReviewedGoals")
 }
 
 model Goal {
@@ -50,10 +57,16 @@ model Goal {
   weightage   Int
   deadline    DateTime
   status      GoalStatus @default(DRAFT)
+  managerNote String?
+  reviewedAt  DateTime?
+  lockedAt    DateTime?
   employeeId  String
-  employee    User       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    User       @relation("EmployeeGoals", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedById String?
+  reviewedBy   User?     @relation("ReviewedGoals", fields: [reviewedById], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   @@index([employeeId, status])
+  @@index([reviewedById])
 }

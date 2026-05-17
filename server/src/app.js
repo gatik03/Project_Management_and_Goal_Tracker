@@ -7,6 +7,7 @@ import { allowedOrigins } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { goalRouter } from "./modules/goals/goal.routes.js";
+import { managerGoalRouter } from "./modules/goals/manager-goal.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 
 export function createApp() {
@@ -32,6 +33,7 @@ export function createApp() {
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/employee/goals", goalRouter);
+  app.use("/api/manager", managerGoalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

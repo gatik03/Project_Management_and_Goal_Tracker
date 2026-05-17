@@ -29,17 +29,36 @@ const users = [
 
 async function main() {
   const passwordHash = await bcrypt.hash("Password123!", 12);
+  const manager = users.find((user) => user.role === "MANAGER");
+  const managerRecord = await prisma.user.upsert({
+    where: { email: manager.email },
+    update: {
+      ...manager,
+      passwordHash,
+      isActive: true
+    },
+    create: {
+      ...manager,
+      passwordHash
+    }
+  });
 
   for (const user of users) {
+    if (user.role === "MANAGER") {
+      continue;
+    }
+
     await prisma.user.upsert({
       where: { email: user.email },
       update: {
         ...user,
+        managerId: user.role === "EMPLOYEE" ? managerRecord.id : null,
         passwordHash,
         isActive: true
       },
       create: {
         ...user,
+        managerId: user.role === "EMPLOYEE" ? managerRecord.id : null,
         passwordHash
       }
     });

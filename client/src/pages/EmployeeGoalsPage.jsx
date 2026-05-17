@@ -22,6 +22,8 @@ const uomOptions = [
   { label: "Text", value: "TEXT" }
 ];
 
+const employeeEditableStatuses = ["DRAFT", "REWORK_REQUIRED"];
+
 function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -176,9 +178,9 @@ export function EmployeeGoalsPage({ user }) {
   const [error, setError] = useState("");
 
   const totalWeightage = useMemo(() => goals.reduce((sum, goal) => sum + goal.weightage, 0), [goals]);
-  const draftGoals = goals.filter((goal) => goal.status === "DRAFT");
-  const canCreate = goals.length < 8 && goals.every((goal) => goal.status === "DRAFT");
-  const canSubmit = draftGoals.length > 0 && totalWeightage === 100;
+  const editableGoals = goals.filter((goal) => employeeEditableStatuses.includes(goal.status));
+  const canCreate = goals.length < 8 && goals.every((goal) => employeeEditableStatuses.includes(goal.status));
+  const canSubmit = editableGoals.length > 0 && totalWeightage === 100;
 
   async function loadGoals() {
     const { data } = await apiClient.get("/employee/goals");
@@ -271,7 +273,7 @@ export function EmployeeGoalsPage({ user }) {
       <section className="grid gap-4 md:grid-cols-3">
         <MetricCard label="Goals created" value={`${goals.length}/8`} helper="Maximum 8 goals per employee" icon={Target} />
         <MetricCard label="Total weightage" value={`${totalWeightage}%`} helper="Must equal 100% before submission" icon={ClipboardIcon} />
-        <MetricCard label="Draft goals" value={String(draftGoals.length)} helper={`${user.department} · ${user.title}`} icon={CalendarDays} />
+        <MetricCard label="Editable goals" value={String(editableGoals.length)} helper={`${user.department} · ${user.title}`} icon={CalendarDays} />
       </section>
 
       <section className="rounded-lg border border-corporate-line bg-white p-5 shadow-soft">
@@ -332,13 +334,13 @@ export function EmployeeGoalsPage({ user }) {
                     <td className="px-5 py-4 text-slate-600">{goal.target}</td>
                     <td className="px-5 py-4 font-semibold text-corporate-navy">{goal.weightage}%</td>
                     <td className="px-5 py-4 text-slate-600">{goal.deadline}</td>
-                    <td className="px-5 py-4"><StatusBadge status={goal.status === "SUBMITTED" ? "Active" : "Draft"} /></td>
+                    <td className="px-5 py-4"><StatusBadge status={goal.status} /></td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
                         <button
                           aria-label="Edit goal"
                           className="rounded-lg border border-corporate-line p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-corporate-blue disabled:cursor-not-allowed disabled:text-slate-300"
-                          disabled={goal.status !== "DRAFT"}
+                          disabled={!employeeEditableStatuses.includes(goal.status)}
                           onClick={() => openEditModal(goal)}
                           type="button"
                         >
@@ -347,7 +349,7 @@ export function EmployeeGoalsPage({ user }) {
                         <button
                           aria-label="Delete goal"
                           className="rounded-lg border border-corporate-line p-2 text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:text-slate-300"
-                          disabled={goal.status !== "DRAFT"}
+                          disabled={!employeeEditableStatuses.includes(goal.status)}
                           onClick={() => deleteGoal(goal.id)}
                           type="button"
                         >

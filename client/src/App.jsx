@@ -4,6 +4,7 @@ import { apiClient } from "./lib/api";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeeGoalsPage } from "./pages/EmployeeGoalsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { ManagerApprovalPage } from "./pages/ManagerApprovalPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -51,6 +52,8 @@ export default function App() {
     <AppShell portalLabel={portalLabel} user={user} onLogout={handleLogout}>
       {user.role === "EMPLOYEE" ? (
         <EmployeeGoalsPage user={user} />
+      ) : user.role === "MANAGER" ? (
+        <ManagerApprovalPage user={user} />
       ) : (
         <DashboardPage portalLabel={portalLabel} user={user} />
       )}
