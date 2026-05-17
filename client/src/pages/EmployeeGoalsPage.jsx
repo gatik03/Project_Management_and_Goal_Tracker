@@ -2,7 +2,9 @@ import { CalendarDays, Edit3, Plus, Save, Target, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { EmployeeQuarterlyPanel } from "../components/EmployeeQuarterlyPanel";
+import { useConfirmation } from "../components/ConfirmationProvider";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { apiClient } from "../lib/api";
 
 const emptyForm = {
@@ -177,6 +179,8 @@ export function EmployeeGoalsPage({ user }) {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
 
   const totalWeightage = useMemo(() => goals.reduce((sum, goal) => sum + goal.weightage, 0), [goals]);
   const editableGoals = goals.filter((goal) => employeeEditableStatuses.includes(goal.status));
@@ -214,18 +218,42 @@ export function EmployeeGoalsPage({ user }) {
     }
 
     setMessage("Draft goal saved.");
+    showToast("Draft goal saved.");
     setIsModalOpen(false);
   }
 
   async function deleteGoal(goalId) {
+    const confirmed = await confirm({
+      title: "Delete draft goal",
+      message: "This goal will be removed from your draft plan. This action cannot be undone.",
+      confirmLabel: "Delete"
+    });
+
+    if (!confirmed) return;
+
     setError("");
     setMessage("");
-    await apiClient.delete(`/employee/goals/${goalId}`);
-    setGoals((current) => current.filter((goal) => goal.id !== goalId));
-    setMessage("Draft goal deleted.");
+
+    try {
+      await apiClient.delete(`/employee/goals/${goalId}`);
+      setGoals((current) => current.filter((goal) => goal.id !== goalId));
+      setMessage("Draft goal deleted.");
+      showToast("Draft goal deleted.");
+    } catch (requestError) {
+      setError(requestError.message);
+      showToast(requestError.message, "error");
+    }
   }
 
   async function submitGoals() {
+    const confirmed = await confirm({
+      title: "Submit goal plan",
+      message: "Submitted goals become read-only until a manager or admin sends them back for rework.",
+      confirmLabel: "Submit"
+    });
+
+    if (!confirmed) return;
+
     setError("");
     setMessage("");
 
@@ -233,8 +261,10 @@ export function EmployeeGoalsPage({ user }) {
       const { data } = await apiClient.post("/employee/goals/submit");
       setGoals(data.goals);
       setMessage("Goal plan submitted.");
+      showToast("Goal plan submitted.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 

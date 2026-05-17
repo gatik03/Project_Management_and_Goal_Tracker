@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./components/AppShell";
+import { ConfirmationProvider } from "./components/ConfirmationProvider";
+import { ToastProvider } from "./components/ToastProvider";
 import { apiClient } from "./lib/api";
 import { AdminPortalPage } from "./pages/AdminPortalPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -37,20 +39,19 @@ export default function App() {
     setUser(null);
   }
 
+  let content;
+
   if (isLoadingSession) {
-    return (
+    content = (
       <div className="grid min-h-screen place-items-center bg-corporate-surface text-sm font-medium text-slate-500">
         Restoring secure session...
       </div>
     );
-  }
-
-  if (!user) {
-    return <LoginPage onAuthenticated={setUser} />;
-  }
-
-  return (
-    <AppShell portalLabel={portalLabel} user={user} onLogout={handleLogout}>
+  } else if (!user) {
+    content = <LoginPage onAuthenticated={setUser} />;
+  } else {
+    content = (
+      <AppShell portalLabel={portalLabel} user={user} onLogout={handleLogout}>
       {user.role === "EMPLOYEE" ? (
         <EmployeeGoalsPage user={user} />
       ) : user.role === "MANAGER" ? (
@@ -60,6 +61,13 @@ export default function App() {
       ) : (
         <DashboardPage portalLabel={portalLabel} user={user} />
       )}
-    </AppShell>
+      </AppShell>
+    );
+  }
+
+  return (
+    <ToastProvider>
+      <ConfirmationProvider>{content}</ConfirmationProvider>
+    </ToastProvider>
   );
 }

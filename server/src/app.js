@@ -1,8 +1,10 @@
 import cors from "cors";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import rateLimit from "express-rate-limit";
 import { allowedOrigins } from "./config/env.js";
 import { attachAuditLogger } from "./middleware/audit.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -13,11 +15,20 @@ import { managerCheckInRouter } from "./modules/checkins/manager-checkin.routes.
 import { goalRouter } from "./modules/goals/goal.routes.js";
 import { managerGoalRouter } from "./modules/goals/manager-goal.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
+import { reportRouter } from "./modules/reports/report.routes.js";
 
 export function createApp() {
   const app = express();
 
+  app.set("trust proxy", 1);
   app.use(helmet());
+  app.use(compression());
+  app.use(rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 600,
+    standardHeaders: true,
+    legacyHeaders: false
+  }));
   app.use(
     cors({
       credentials: true,
@@ -42,6 +53,7 @@ export function createApp() {
   app.use("/api/employee/check-ins", employeeCheckInRouter);
   app.use("/api/manager", managerGoalRouter);
   app.use("/api/manager/check-ins", managerCheckInRouter);
+  app.use("/api/reports", reportRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

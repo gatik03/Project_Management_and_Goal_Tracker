@@ -8,7 +8,7 @@ const router = Router();
 const cookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "strict",
+  sameSite: env.JWT_COOKIE_SAME_SITE,
   maxAge: 8 * 60 * 60 * 1000
 };
 

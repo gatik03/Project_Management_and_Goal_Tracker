@@ -2,7 +2,10 @@ import { CheckCircle2, RefreshCw, Save, UsersRound, XCircle } from "lucide-react
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { ManagerQuarterlyPanel } from "../components/ManagerQuarterlyPanel";
+import { ReportingDashboard } from "../components/ReportingDashboard";
+import { useConfirmation } from "../components/ConfirmationProvider";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { apiClient } from "../lib/api";
 
 const managerEditableStatuses = ["SUBMITTED", "REWORK_REQUIRED"];
@@ -14,6 +17,8 @@ export function ManagerApprovalPage({ user }) {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
 
   const submittedCount = goals.filter((goal) => goal.status === "SUBMITTED").length;
   const approvedCount = goals.filter((goal) => goal.status === "APPROVED" || goal.status === "LOCKED").length;
@@ -90,12 +95,22 @@ export function ManagerApprovalPage({ user }) {
       });
       updateGoal(data.goal);
       setMessage("Goal target and weightage updated.");
+      showToast("Goal target and weightage updated.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
   async function approveGoal(goalId) {
+    const confirmed = await confirm({
+      title: "Approve goal",
+      message: "Approving this goal locks it for employee edits.",
+      confirmLabel: "Approve"
+    });
+
+    if (!confirmed) return;
+
     setError("");
     setMessage("");
 
@@ -103,12 +118,22 @@ export function ManagerApprovalPage({ user }) {
       const { data } = await apiClient.post(`/manager/goals/${goalId}/approve`);
       updateGoal(data.goal);
       setMessage("Goal approved and locked for employee edits.");
+      showToast("Goal approved and locked.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
   async function rejectGoal(goalId) {
+    const confirmed = await confirm({
+      title: "Return goal for rework",
+      message: "This will make the goal editable for the employee again.",
+      confirmLabel: "Send for rework"
+    });
+
+    if (!confirmed) return;
+
     setError("");
     setMessage("");
 
@@ -118,8 +143,10 @@ export function ManagerApprovalPage({ user }) {
       });
       updateGoal(data.goal);
       setMessage("Goal sent back for rework.");
+      showToast("Goal sent back for rework.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
@@ -274,6 +301,8 @@ export function ManagerApprovalPage({ user }) {
       </section>
 
       <ManagerQuarterlyPanel />
+
+      <ReportingDashboard scopeLabel="Team analytics" />
     </div>
   );
 }

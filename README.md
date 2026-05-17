@@ -91,6 +91,43 @@ Phase 6 adds the admin portal:
 - Admin-only REST APIs
 - Audit logging for admin data mutations
 
+## Phase 7 Scope
+
+Phase 7 adds reporting and analytics:
+
+- Achievement reports
+- CSV export
+- Excel-compatible export
+- Team completion dashboard
+- Progress analytics
+- Goal distribution charts
+- Quarterly trend charts
+- Filterable reporting by department, goal status, and quarter
+- Recharts-based frontend visualization
+
+## Phase 8 Scope
+
+Phase 8 adds production polish and deployment preparation:
+
+- Shared toast notifications
+- Reusable confirmation dialog
+- Improved workflow error handling
+- Production API compression
+- API rate limiting
+- Dockerfiles and Docker Compose
+- Vercel frontend configuration
+- Render backend blueprint
+- Architecture, API, environment, and deployment documentation
+
+Additional docs:
+
+```text
+ARCHITECTURE.md
+API.md
+ENVIRONMENT.md
+DEPLOYMENT.md
+```
+
 ## Folder Structure
 
 ```text
@@ -255,6 +292,49 @@ GET   /api/admin/audit-logs
 GET   /api/admin/cycle-configs
 POST  /api/admin/cycle-configs
 ```
+
+## Phase 7 Reporting API Structure
+
+Reporting APIs are protected by `requireAuth` and `requireRole("MANAGER", "ADMIN")`.
+
+```text
+GET /api/reports/dashboard
+GET /api/reports/export.csv
+GET /api/reports/export.xls
+```
+
+Supported query filters:
+
+```text
+department
+status
+quarter
+```
+
+Managers see only direct-report data. Admins see organization-wide data.
+
+## Phase 7 Reporting Architecture
+
+Reporting logic lives in `server/src/modules/reports`.
+
+- `report.routes.js` exposes dashboard and export endpoints.
+- `report.service.js` builds scoped Prisma queries and aggregation datasets.
+- `export.service.js` converts report rows into CSV and Excel-compatible HTML table output.
+- `ReportingDashboard.jsx` renders filters, analytics cards, Recharts charts, and export buttons.
+
+## Phase 7 Query Optimization
+
+- The reporting service builds a single scoped `where` clause based on the authenticated role.
+- Manager queries filter through `goal.employee.managerId`, preventing cross-team data access.
+- Admin queries reuse the same aggregation shape without manager scoping.
+- Prisma includes only the related employee and check-in fields required for reporting.
+- Existing indexes on goal status, employee id, quarterly status, and quarter support common filters.
+
+## Phase 7 Export Generation
+
+- CSV export returns `text/csv` with `Content-Disposition: attachment`.
+- Excel export returns an Excel-compatible `.xls` HTML table using `application/vnd.ms-excel`.
+- Exports use the same filters and security scope as dashboard analytics, so exported rows match visible report data.
 
 ## Phase 6 Audit Architecture
 

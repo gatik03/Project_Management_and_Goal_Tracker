@@ -1,8 +1,11 @@
 import { LockOpen, Save, Search, Settings, ShieldCheck, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
+import { useConfirmation } from "../components/ConfirmationProvider";
 import { ProgressBar } from "../components/ProgressBar";
+import { ReportingDashboard } from "../components/ReportingDashboard";
 import { StatusBadge } from "../components/StatusBadge";
+import { useToast } from "../components/ToastProvider";
 import { apiClient } from "../lib/api";
 
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
@@ -25,6 +28,8 @@ export function AdminPortalPage() {
     endDate: "",
     isActive: true
   });
+  const { confirm } = useConfirmation();
+  const { showToast } = useToast();
 
   const managers = useMemo(() => users.filter((user) => user.role === "MANAGER" && user.isActive), [users]);
   const filteredUsers = users.filter((user) => {
@@ -67,8 +72,10 @@ export function AdminPortalPage() {
       setUsers((current) => current.map((user) => (user.id === userId ? data.user : user)));
       await loadAdminData();
       setMessage("User updated and audit log captured.");
+      showToast("User updated and audit log captured.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
@@ -82,12 +89,22 @@ export function AdminPortalPage() {
       return;
     }
 
+    const confirmed = await confirm({
+      title: "Unlock goal",
+      message: "This will send the goal back as rework required and allow the employee to edit it.",
+      confirmLabel: "Unlock"
+    });
+
+    if (!confirmed) return;
+
     try {
       await apiClient.post(`/admin/goals/${goalId}/unlock`, { reason });
       await loadAdminData();
       setMessage("Goal unlocked and audit log captured.");
+      showToast("Goal unlocked and audit log captured.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
@@ -100,8 +117,10 @@ export function AdminPortalPage() {
       await apiClient.post("/admin/cycle-configs", cycleForm);
       await loadAdminData();
       setMessage("Quarterly cycle configuration saved.");
+      showToast("Quarterly cycle configuration saved.");
     } catch (requestError) {
       setError(requestError.message);
+      showToast(requestError.message, "error");
     }
   }
 
@@ -145,6 +164,8 @@ export function AdminPortalPage() {
           <ProgressBar value={dashboard?.checkIns.completionPercent ?? 0} tone={(dashboard?.checkIns.completionPercent ?? 0) === 100 ? "green" : "blue"} />
         </div>
       </section>
+
+      <ReportingDashboard scopeLabel="Organization analytics" />
 
       <section className="rounded-lg border border-corporate-line bg-white shadow-soft">
         <div className="flex flex-col gap-3 border-b border-corporate-line p-5 md:flex-row md:items-center md:justify-between">
