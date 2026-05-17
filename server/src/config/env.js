@@ -7,13 +7,18 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("8h"),
   JWT_COOKIE_NAME: z.string().default("goal_portal_token"),
   JWT_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
-  PORT: z.coerce.number().default(4000),
+  PORT: z.string().optional(),
   CLIENT_ORIGIN: z.string().url().optional(),
   CLIENT_ORIGINS: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development")
 });
 
-export const env = envSchema.parse(process.env);
+const parsedEnv = envSchema.parse(process.env);
+
+export const env = {
+  ...parsedEnv,
+  PORT: Number(parsedEnv.PORT) || 4000,
+};
 
 const rawAllowedOrigins = [env.CLIENT_ORIGINS, env.CLIENT_ORIGIN]
   .filter(Boolean)
