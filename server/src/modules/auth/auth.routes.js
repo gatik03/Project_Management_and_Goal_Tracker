@@ -1,16 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
 import { env } from "../../config/env.js";
+import { getAuthCookieOptions } from "../../config/cookies.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { getCurrentUser, login, rolePermissions } from "./auth.service.js";
 
 const router = Router();
-const cookieOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: env.JWT_COOKIE_SAME_SITE,
-  maxAge: 8 * 60 * 60 * 1000
-};
 
 const loginSchema = z.object({
   email: z.string().email().transform((value) => value.toLowerCase()),
@@ -26,7 +21,7 @@ router.post("/login", async (request, response, next) => {
       return response.status(401).json({ message: "Invalid email or password" });
     }
 
-    response.cookie(env.JWT_COOKIE_NAME, result.token, cookieOptions);
+    response.cookie(env.JWT_COOKIE_NAME, result.token, getAuthCookieOptions());
 
     return response.json({ user: result.user });
   } catch (error) {
@@ -53,7 +48,7 @@ router.get("/me", requireAuth, async (request, response, next) => {
 });
 
 router.post("/logout", (_request, response) => {
-  response.clearCookie(env.JWT_COOKIE_NAME, cookieOptions);
+  response.clearCookie(env.JWT_COOKIE_NAME, getAuthCookieOptions());
   return response.json({ message: "Logged out successfully" });
 });
 

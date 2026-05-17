@@ -24,7 +24,11 @@ export default function App() {
       try {
         const { data } = await apiClient.get("/auth/me");
         setUser(data.user);
-      } catch {
+      } catch (error) {
+        console.warn("Session restore failed", {
+          baseURL: apiClient.defaults.baseURL,
+          message: error.message
+        });
         setUser(null);
       } finally {
         setIsLoadingSession(false);

@@ -1,4 +1,5 @@
 import { ArrowRight, BarChart3, ClipboardCheck, ShieldCheck } from "lucide-react";
+import { apiClient } from "../lib/api";
 
 const capabilities = [
   {
@@ -19,6 +20,8 @@ const capabilities = [
 ];
 
 export function LandingPage({ onOpenDashboard }) {
+  const healthUrl = `${apiClient.defaults.baseURL.replace(/\/$/, "")}/health`;
+
   return (
     <main className="min-h-screen bg-corporate-surface">
       <header className="border-b border-corporate-line bg-white">
@@ -58,7 +61,7 @@ export function LandingPage({ onOpenDashboard }) {
             </button>
             <a
               className="rounded-lg border border-corporate-line bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-corporate-blue"
-              href="http://localhost:4000/api/health"
+              href={healthUrl}
             >
               API health check
             </a>

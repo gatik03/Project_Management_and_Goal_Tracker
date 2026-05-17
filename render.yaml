@@ -3,13 +3,11 @@ services:
     name: goal-portal-api
     runtime: node
     rootDir: server
-    buildCommand: npm install && npx prisma generate
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy
     startCommand: node src/server.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 4000
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
@@ -21,6 +19,6 @@ services:
       - key: JWT_COOKIE_SAME_SITE
         value: none
       - key: CLIENT_ORIGIN
-        sync: false
+        value: https://project-management-and-goal-tracker.vercel.app
       - key: CLIENT_ORIGINS
-        sync: false
+        value: https://project-management-and-goal-tracker.vercel.app
