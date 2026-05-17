@@ -1,0 +1,22 @@
+{
+  "name": "goal-setting-tracking-portal",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "prisma:generate": "npm run prisma:generate --workspace server",
+    "prisma:migrate": "npm run prisma:migrate --workspace server",
+    "seed": "npm run seed --workspace server"
+  },
+  "engines": {
+    "node": ">=18.19.0"
+  }
+}
