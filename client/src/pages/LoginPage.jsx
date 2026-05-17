@@ -16,7 +16,6 @@ export function LoginPage({ onAuthenticated }) {
     try {
       const { data: result } = await apiClient.post("/auth/login", { email, password });
 
-      window.localStorage.setItem("goal_portal_token", result.token);
       onAuthenticated(result.user);
     } catch (requestError) {
       setError(requestError.message);
@@ -34,7 +33,7 @@ export function LoginPage({ onAuthenticated }) {
             Enterprise goal planning with accountable progress tracking.
           </h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-            A focused HRMS workspace for employees, managers, and administrators to align goals, review progress, and keep performance cycles on track.
+            A focused HRMS workspace for employees, managers, and administrators to access role-specific performance operations.
           </p>
         </div>
         <div className="grid max-w-3xl grid-cols-3 gap-4">
@@ -92,6 +91,13 @@ export function LoginPage({ onAuthenticated }) {
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
+
+          <div className="mt-6 rounded-lg bg-slate-50 p-4 text-xs leading-6 text-slate-600">
+            <p className="font-semibold text-corporate-navy">Demo accounts</p>
+            <p>employee@atomberg.local / Password123!</p>
+            <p>manager@atomberg.local / Password123!</p>
+            <p>admin@atomberg.local / Password123!</p>
+          </div>
         </form>
       </section>
     </main>

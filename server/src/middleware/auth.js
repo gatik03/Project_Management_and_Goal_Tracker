@@ -5,12 +5,14 @@ import { prisma } from "../config/prisma.js";
 export async function requireAuth(request, response, next) {
   try {
     const header = request.headers.authorization;
+    const cookieToken = request.cookies?.[env.JWT_COOKIE_NAME];
+    const bearerToken = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
 
-    if (!header?.startsWith("Bearer ")) {
+    if (!cookieToken && !bearerToken) {
       return response.status(401).json({ message: "Authentication token is required" });
     }
 
-    const token = header.slice("Bearer ".length);
+    const token = cookieToken ?? bearerToken;
     const payload = jwt.verify(token, env.JWT_SECRET);
 
     const user = await prisma.user.findUnique({
@@ -35,4 +37,18 @@ export async function requireAuth(request, response, next) {
   } catch {
     return response.status(401).json({ message: "Invalid or expired authentication token" });
   }
+}
+
+export function requireRole(...allowedRoles) {
+  return (request, response, next) => {
+    if (!request.user) {
+      return response.status(401).json({ message: "Authentication is required" });
+    }
+
+    if (!allowedRoles.includes(request.user.role)) {
+      return response.status(403).json({ message: "You do not have permission to access this resource" });
+    }
+
+    return next();
+  };
 }

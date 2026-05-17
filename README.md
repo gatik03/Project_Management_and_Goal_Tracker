@@ -4,7 +4,7 @@ Enterprise-grade goal setting and tracking portal built phase-by-phase for a hac
 
 ## Phase 1 Scope
 
-This phase creates the project foundation only:
+Phase 1 created the project foundation:
 
 - React + Vite + TailwindCSS frontend
 - Node.js + Express backend
@@ -15,7 +15,24 @@ This phase creates the project foundation only:
 - Reusable UI components
 - Environment-based configuration
 
-Authentication, goal workflows, quarterly check-ins, reporting, audit logs, and advanced role-specific screens are intentionally left for later phases.
+Goal workflows, quarterly check-ins, reporting, audit logs, and advanced role-specific screens are intentionally left for later phases.
+
+## Phase 2 Scope
+
+Phase 2 adds authentication and role access only:
+
+- PostgreSQL `User` schema with `EMPLOYEE`, `MANAGER`, and `ADMIN` roles
+- Password hashing with `bcryptjs`
+- JWT generation after login
+- Secure httpOnly JWT cookie storage
+- Session persistence through `/api/auth/me`
+- Logout through `/api/auth/logout`
+- Protected route middleware
+- Role-based access middleware
+- Seed users for all three roles
+- Professional login page and role-aware dashboard shell
+
+Goals are not implemented in this phase.
 
 ## Folder Structure
 
@@ -78,6 +95,14 @@ Frontend: `http://localhost:5173`
 
 Backend: `http://localhost:4000`
 
+## Demo Users
+
+```text
+Employee: employee@atomberg.local / Password123!
+Manager:  manager@atomberg.local  / Password123!
+Admin:    admin@atomberg.local    / Password123!
+```
+
 ## Frontend and Backend Communication
 
 The frontend uses an Axios client in `client/src/lib/api.js`. The base URL comes from `VITE_API_BASE_URL`, which should point to the Express API namespace:
@@ -87,6 +112,37 @@ VITE_API_BASE_URL=http://localhost:4000/api
 ```
 
 The backend enables CORS for `CLIENT_ORIGIN`, so the Vite dev server can call the Express server during local development.
+
+Axios is configured with `withCredentials: true` so the browser sends the httpOnly JWT cookie to the API on authenticated requests.
+
+## JWT Flow
+
+1. The user submits email and password from the login page.
+2. The frontend calls `POST /api/auth/login`.
+3. The backend validates the payload, finds the user, and compares the password with the stored bcrypt hash.
+4. On success, the backend signs a JWT with the user id as `sub` and role in the payload.
+5. The JWT is written to an httpOnly cookie, so client-side JavaScript cannot read it.
+6. On refresh, the frontend calls `GET /api/auth/me`.
+7. The auth middleware verifies the JWT cookie, loads the active user, and attaches it to `request.user`.
+8. Logout calls `POST /api/auth/logout`, which clears the cookie.
+
+## Middleware Logic
+
+- `requireAuth` checks for a JWT in the httpOnly cookie, with Bearer token support kept for API tooling.
+- It verifies the token signature using `JWT_SECRET`.
+- It loads the active user from PostgreSQL through Prisma.
+- It rejects missing, expired, invalid, or inactive-user sessions with `401`.
+- `requireRole(...roles)` checks `request.user.role` and rejects unauthorized roles with `403`.
+
+## Role Permissions
+
+```text
+EMPLOYEE: ACCESS_EMPLOYEE_PORTAL
+MANAGER:  ACCESS_EMPLOYEE_PORTAL, ACCESS_MANAGER_PORTAL
+ADMIN:    ACCESS_EMPLOYEE_PORTAL, ACCESS_MANAGER_PORTAL, ACCESS_ADMIN_PORTAL
+```
+
+The current dashboard redirects users into the correct role-aware shell after login. Future modules should wrap sensitive APIs with `requireAuth` and `requireRole`.
 
 ## Architecture Notes
 

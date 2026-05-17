@@ -12,6 +12,12 @@ const userSelect = {
   title: true
 };
 
+export const rolePermissions = {
+  EMPLOYEE: ["VIEW_OWN_PROFILE", "ACCESS_EMPLOYEE_PORTAL"],
+  MANAGER: ["VIEW_OWN_PROFILE", "ACCESS_EMPLOYEE_PORTAL", "ACCESS_MANAGER_PORTAL"],
+  ADMIN: ["VIEW_OWN_PROFILE", "ACCESS_EMPLOYEE_PORTAL", "ACCESS_MANAGER_PORTAL", "ACCESS_ADMIN_PORTAL"]
+};
+
 export async function login({ email, password }) {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() }
@@ -40,14 +46,24 @@ export async function login({ email, password }) {
       email: user.email,
       role: user.role,
       department: user.department,
-      title: user.title
+      title: user.title,
+      permissions: rolePermissions[user.role]
     }
   };
 }
 
 export async function getCurrentUser(userId) {
-  return prisma.user.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: userSelect
   });
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    ...user,
+    permissions: rolePermissions[user.role]
+  };
 }

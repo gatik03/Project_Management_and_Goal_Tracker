@@ -2,11 +2,30 @@ import { ClipboardCheck, Goal, UsersRound } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { StatusBadge } from "../components/StatusBadge";
 
-export function DashboardPage() {
+const roleCopy = {
+  EMPLOYEE: {
+    eyebrow: "Employee Portal",
+    title: "Your secure employee workspace is active",
+    description: "Authentication and employee role access are configured. Goal creation remains intentionally out of scope for this phase."
+  },
+  MANAGER: {
+    eyebrow: "Manager Portal",
+    title: "Manager access is verified",
+    description: "The session has manager-level permissions ready for future team review workflows. Goal review features start in a later phase."
+  },
+  ADMIN: {
+    eyebrow: "Admin Portal",
+    title: "Admin access is verified",
+    description: "The session has admin-level permissions for future user and policy administration. Goal modules are not implemented yet."
+  }
+};
+
+export function DashboardPage({ portalLabel, user }) {
+  const copy = roleCopy[user.role] ?? roleCopy.EMPLOYEE;
   const rows = [
-    { area: "Frontend shell", owner: "Product Engineering", status: "Active", progress: 100 },
-    { area: "Manager approvals", owner: "People Team", status: "Pending", progress: 0 },
-    { area: "Policy configuration", owner: "Admin", status: "Draft", progress: 0 }
+    { area: "JWT session", owner: user.name, status: "Active", progress: 100 },
+    { area: "Role permissions", owner: portalLabel, status: "Active", progress: 100 },
+    { area: "Goal modules", owner: "Future Phase", status: "Draft", progress: 0 }
   ];
 
   return (
@@ -14,10 +33,10 @@ export function DashboardPage() {
       <section className="rounded-lg border border-corporate-line bg-white p-5 shadow-soft">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-sm font-medium text-slate-500">Phase 1 Foundation</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-normal text-corporate-navy">Portal workspace is ready</h2>
+            <p className="text-sm font-medium text-slate-500">{copy.eyebrow}</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-normal text-corporate-navy">{copy.title}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Authentication, role-aware layout, API connectivity, and database setup are in place. Goal workflow features begin in the next phase.
+              {copy.description}
             </p>
           </div>
           <StatusBadge status="Active" />
@@ -25,9 +44,9 @@ export function DashboardPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Assigned goals" value="0" helper="Goal creation begins in Phase 2" icon={Goal} />
-        <MetricCard label="Pending reviews" value="0" helper="Manager workflow is not enabled yet" icon={UsersRound} />
-        <MetricCard label="Open check-ins" value="0" helper="Quarterly check-ins arrive later" icon={ClipboardCheck} />
+        <MetricCard label="Authenticated user" value="1" helper={`${user.department} · ${user.title}`} icon={Goal} />
+        <MetricCard label="Role permissions" value={String(user.permissions?.length ?? 0)} helper={`${user.role} access profile loaded`} icon={UsersRound} />
+        <MetricCard label="Goal modules" value="0" helper="Goal implementation starts in a future phase" icon={ClipboardCheck} />
       </section>
 
       <section className="rounded-lg border border-corporate-line bg-white shadow-soft">
