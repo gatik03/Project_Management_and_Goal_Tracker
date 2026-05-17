@@ -11,12 +11,12 @@ const roleCopy = {
   MANAGER: {
     eyebrow: "Manager Portal",
     title: "Manager access is verified",
-    description: "The session has manager-level permissions ready for future team review workflows. Goal review features start in a later phase."
+    description: "The session has manager-level permissions ready for future team review workflows. Employee goal creation is available only to employees in this phase."
   },
   ADMIN: {
     eyebrow: "Admin Portal",
     title: "Admin access is verified",
-    description: "The session has admin-level permissions for future user and policy administration. Goal modules are not implemented yet."
+    description: "The session has admin-level permissions for future user and policy administration. Employee goal creation is available only to employees in this phase."
   }
 };
 

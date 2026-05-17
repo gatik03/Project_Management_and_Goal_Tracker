@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { apiClient } from "./lib/api";
 import { DashboardPage } from "./pages/DashboardPage";
+import { EmployeeGoalsPage } from "./pages/EmployeeGoalsPage";
 import { LoginPage } from "./pages/LoginPage";
 
 export default function App() {
@@ -48,7 +49,11 @@ export default function App() {
 
   return (
     <AppShell portalLabel={portalLabel} user={user} onLogout={handleLogout}>
-      <DashboardPage portalLabel={portalLabel} user={user} />
+      {user.role === "EMPLOYEE" ? (
+        <EmployeeGoalsPage user={user} />
+      ) : (
+        <DashboardPage portalLabel={portalLabel} user={user} />
+      )}
     </AppShell>
   );
 }

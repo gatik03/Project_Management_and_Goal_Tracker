@@ -13,6 +13,19 @@ enum Role {
   ADMIN
 }
 
+enum GoalStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum UomType {
+  NUMBER
+  PERCENTAGE
+  CURRENCY
+  BOOLEAN
+  TEXT
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -24,4 +37,23 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  goals        Goal[]
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  thrustArea  String
+  uomType     UomType
+  target      String
+  weightage   Int
+  deadline    DateTime
+  status      GoalStatus @default(DRAFT)
+  employeeId  String
+  employee    User       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([employeeId, status])
 }

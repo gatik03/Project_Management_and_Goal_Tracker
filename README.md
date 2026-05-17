@@ -34,6 +34,21 @@ Phase 2 adds authentication and role access only:
 
 Goals are not implemented in this phase.
 
+## Phase 3 Scope
+
+Phase 3 adds employee goal creation only:
+
+- `Goal` database model related to `User`
+- Employee-only CRUD APIs for draft goals
+- Create, edit, and delete draft goals
+- Save-as-draft behavior
+- Submit goal plan when draft weightage totals exactly 100%
+- Maximum 8 goals per employee
+- Minimum 10% weightage per goal
+- Modern employee dashboard with cards, table, progress indicator, and create/edit modal
+
+Manager approvals, admin goal controls, check-ins, reports, and audit logs are not implemented in this phase.
+
 ## Folder Structure
 
 ```text
@@ -143,6 +158,35 @@ ADMIN:    ACCESS_EMPLOYEE_PORTAL, ACCESS_MANAGER_PORTAL, ACCESS_ADMIN_PORTAL
 ```
 
 The current dashboard redirects users into the correct role-aware shell after login. Future modules should wrap sensitive APIs with `requireAuth` and `requireRole`.
+
+## Phase 3 API Structure
+
+All goal APIs are protected by `requireAuth` and `requireRole("EMPLOYEE")`.
+
+```text
+GET    /api/employee/goals          List current employee goals
+POST   /api/employee/goals          Create a draft goal
+PUT    /api/employee/goals/:goalId  Edit a draft goal
+DELETE /api/employee/goals/:goalId  Delete a draft goal
+POST   /api/employee/goals/submit   Submit the draft goal plan
+```
+
+## Goal Validation Logic
+
+- Each goal must include title, description, thrust area, UoM type, target, weightage, and deadline.
+- Each goal weightage must be at least `10%`.
+- Employees can create at most `8` goals.
+- Employees can save incomplete draft plans while building their goals.
+- Submission is allowed only when the total draft weightage equals exactly `100%`.
+- Submitted goals are read-only for employees in this phase.
+
+## Database Relationships
+
+```text
+User 1 ─── * Goal
+```
+
+Each goal belongs to one employee through `Goal.employeeId`. Deleting a user cascades to that user's goals. Goals are indexed by `employeeId` and `status` for efficient employee dashboard queries.
 
 ## Architecture Notes
 
