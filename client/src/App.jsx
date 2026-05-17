@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { apiClient } from "./lib/api";
+import { AdminPortalPage } from "./pages/AdminPortalPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeeGoalsPage } from "./pages/EmployeeGoalsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -54,6 +55,8 @@ export default function App() {
         <EmployeeGoalsPage user={user} />
       ) : user.role === "MANAGER" ? (
         <ManagerApprovalPage user={user} />
+      ) : user.role === "ADMIN" ? (
+        <AdminPortalPage />
       ) : (
         <DashboardPage portalLabel={portalLabel} user={user} />
       )}

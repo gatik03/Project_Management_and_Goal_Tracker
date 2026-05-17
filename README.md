@@ -77,6 +77,20 @@ Phase 5 adds quarterly check-ins:
 
 Reporting and audit logs are not implemented in this phase.
 
+## Phase 6 Scope
+
+Phase 6 adds the admin portal:
+
+- Admin dashboard with analytics cards
+- User management for roles, active status, and reporting managers
+- Organization hierarchy view
+- Goal unlock workflow
+- Completion tracking dashboard
+- Quarterly cycle configuration
+- Audit log table
+- Admin-only REST APIs
+- Audit logging for admin data mutations
+
 ## Folder Structure
 
 ```text
@@ -226,6 +240,55 @@ GET  /api/manager/check-ins
 POST /api/manager/check-ins/:checkInId/comment
 ```
 
+## Phase 6 Admin API Structure
+
+All admin APIs are protected by `requireAuth` and `requireRole("ADMIN")`.
+
+```text
+GET   /api/admin/dashboard
+GET   /api/admin/users
+PATCH /api/admin/users/:userId
+GET   /api/admin/hierarchy
+GET   /api/admin/goals/unlockable
+POST  /api/admin/goals/:goalId/unlock
+GET   /api/admin/audit-logs
+GET   /api/admin/cycle-configs
+POST  /api/admin/cycle-configs
+```
+
+## Phase 6 Audit Architecture
+
+Audit logging is attached through `server/src/middleware/audit.js`. The middleware adds `request.audit(...)`, and admin services call it after successful mutations.
+
+Each audit record captures:
+
+- `actorId` and `actorEmail`
+- action, such as `USER_UPDATED`, `GOAL_UNLOCKED`, or `CYCLE_CONFIG_UPDATED`
+- entity type and entity id
+- old value as JSON
+- new value as JSON
+- timestamp
+
+Audit logs are stored in the `AuditLog` table and shown in the admin portal.
+
+## Phase 6 Admin Security
+
+- All admin routes require a valid JWT session.
+- All admin routes require the `ADMIN` role.
+- Admin user updates do not expose or modify passwords.
+- Manager assignment requires the selected manager to be an active manager.
+- Audit logs are created only after successful admin mutations.
+
+## Phase 6 Unlock Workflow
+
+1. Admin opens the Goal Unlocks panel.
+2. Admin chooses a submitted, approved, or locked goal.
+3. Admin provides an unlock reason.
+4. Backend changes the goal to `REWORK_REQUIRED`.
+5. Backend clears `lockedAt`.
+6. The employee can edit and resubmit the goal through the existing employee workflow.
+7. The old goal state, new goal state, admin identity, and timestamp are written to audit logs.
+
 ## Phase 5 Progress Formulas
 
 Progress is calculated in `server/src/modules/checkins/progress.engine.js`.
@@ -264,6 +327,7 @@ isComplete = all 4 quarters are COMPLETED
 Manager User 1 ─── * Employee User
 Employee User 1 ─── * Goal
 Goal 1 ─── * QuarterlyCheckIn
+Admin Action 1 ─── * AuditLog
 ```
 
 Each employee may have a `managerId`. Manager goal queries are scoped through that relationship, so a manager can only view and act on goals owned by direct reports.
@@ -271,6 +335,8 @@ Each employee may have a `managerId`. Manager goal queries are scoped through th
 Each goal belongs to one employee through `Goal.employeeId`. Deleting a user cascades to that user's goals. Goals are indexed by `employeeId`, `status`, and reviewer fields for efficient dashboards.
 
 Each quarterly check-in belongs to one goal. The database enforces one check-in per goal per quarter with a unique `(goalId, quarter)` constraint.
+
+Audit logs are append-only records of admin changes. Quarterly cycle configuration is stored separately in `QuarterlyCycleConfig` with a unique `(year, quarter)` constraint.
 
 ## Phase 5 Quarterly Workflow
 

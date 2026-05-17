@@ -42,6 +42,12 @@ enum CheckInStatus {
   COMPLETED
 }
 
+enum AuditAction {
+  USER_UPDATED
+  GOAL_UNLOCKED
+  CYCLE_CONFIG_UPDATED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -101,4 +107,34 @@ model QuarterlyCheckIn {
 
   @@unique([goalId, quarter])
   @@index([quarter, status])
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  actorId     String?
+  actorEmail  String
+  action      AuditAction
+  entityType  String
+  entityId    String
+  oldValue    Json?
+  newValue    Json?
+  createdAt   DateTime    @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model QuarterlyCycleConfig {
+  id          String   @id @default(uuid())
+  year        Int
+  quarter     Quarter
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([year, quarter])
+  @@index([isActive])
 }
