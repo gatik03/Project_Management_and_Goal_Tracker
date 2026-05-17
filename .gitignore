@@ -1,7 +1,41 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+client/dist/
+server/dist/
+
+# Environment files
 .env
-.env.local
-.DS_Store
+.env.*
+!.env.example
+!client/.env.example
+!server/.env.example
+
+# Logs
+logs/
+*.log
 npm-debug.log*
-coverage
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Prisma generated/local files
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Misc cache files
+.eslintcache
+.vite/
