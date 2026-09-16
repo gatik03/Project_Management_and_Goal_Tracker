@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { env } from "../../config/env.js";
 import { getAuthCookieOptions } from "../../config/cookies.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
@@ -7,12 +8,20 @@ import { getCurrentUser, login, rolePermissions } from "./auth.service.js";
 
 const router = Router();
 
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 login requests per `window`
+  message: { message: "Too many login attempts from this IP, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 const loginSchema = z.object({
   email: z.string().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8)
 });
 
-router.post("/login", async (request, response, next) => {
+router.post("/login", loginRateLimiter, async (request, response, next) => {
   try {
     const credentials = loginSchema.parse(request.body);
     const result = await login(credentials);

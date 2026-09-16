@@ -3,6 +3,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 import express from "express";
 import helmet from "helmet";
+import hpp from "hpp";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import { allowedOrigins } from "./config/env.js";
@@ -43,6 +44,7 @@ export function createApp() {
   );
   app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
+  app.use(hpp()); // Prevent HTTP Parameter Pollution
   app.use(attachAuditLogger);
   app.use(morgan("dev"));
 
