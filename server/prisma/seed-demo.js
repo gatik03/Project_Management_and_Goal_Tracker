@@ -106,7 +106,9 @@ async function main() {
 
     async function audit(key, data) {
       const id = fixtureId(`audit:${key}`);
-      await db.auditLog.upsert({ where: { id }, create: { id, ...data }, update: data });
+      // Audit rows are immutable in deployed databases. Re-seeding preserves
+      // an existing fixture row instead of issuing an UPDATE against the trigger.
+      await db.auditLog.createMany({ data: [{ id, ...data }], skipDuplicates: true });
       totals.auditLogs += 1;
     }
 

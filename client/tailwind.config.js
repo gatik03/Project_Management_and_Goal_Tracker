@@ -4,23 +4,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        corporate: {
-          blue: "#2563eb",
-          navy: "#172033",
-          line: "#e5e7eb",
-          surface: "#f8fafc"
-        }
-      },
-      boxShadow: {
-        soft: "0 10px 30px rgba(15, 23, 42, 0.08)"
+        paper: "var(--paper)",
+        surface: "var(--surface)",
+        sunken: "var(--sunken)",
+        line: "var(--line)",
+        ink: "var(--ink)",
+        muted: "var(--muted)",
+        signal: "var(--signal)",
+        ok: "var(--ok)",
+        warn: "var(--warn)",
+        danger: "var(--danger)",
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"]
+        display: ["Bricolage Grotesque Variable", "sans-serif"],
+        ui: ["Public Sans Variable", "sans-serif"],
       },
-      spacing: {
-        68: "17rem"
-      }
-    }
+      borderRadius: { chip: "3px", control: "6px", panel: "10px" },
+    },
   },
-  plugins: []
+  plugins: [],
 };

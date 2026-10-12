@@ -64,6 +64,7 @@ describe("authentication and role boundaries", () => {
   const readRoutes = [
     ["/api/auth/me", ["EMPLOYEE", "MANAGER", "ADMIN"]],
     ["/api/auth/permissions", ["EMPLOYEE", "MANAGER", "ADMIN"]],
+    ["/api/cycles/active", ["EMPLOYEE", "MANAGER", "ADMIN"]],
     ["/api/auth/admin-check", ["ADMIN"]],
     ["/api/employee/goals", ["EMPLOYEE"]],
     ["/api/employee/check-ins", ["EMPLOYEE"]],
@@ -85,6 +86,18 @@ describe("authentication and role boundaries", () => {
     for (const user of [employee, manager, admin]) {
       const response = await call("get", path, user);
       expect(response.status).toBe(allowed.includes(user.role) ? 200 : 403);
+    }
+  });
+
+  it("shows the configured active quarter to every signed-in role", async () => {
+    await prisma.quarterlyCycleConfig.create({ data: {
+      year: 2026, quarter: "Q4", startDate: new Date("2026-10-01"),
+      endDate: new Date("2026-12-31"), isActive: true
+    } });
+    for (const user of [employee, manager, admin]) {
+      const response = await call("get", "/api/cycles/active", user);
+      expect(response.status).toBe(200);
+      expect(response.body.cycle).toMatchObject({ year: 2026, quarter: "Q4", endDate: "2026-12-31" });
     }
   });
 

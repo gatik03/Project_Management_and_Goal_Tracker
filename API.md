@@ -13,6 +13,7 @@ POST /auth/login
 GET  /auth/me
 POST /auth/logout
 GET  /auth/permissions
+GET  /cycles/active
 ```
 
 ## Employee Goals
