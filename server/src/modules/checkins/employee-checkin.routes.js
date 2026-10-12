@@ -21,7 +21,8 @@ router.put("/:goalId/:quarter", async (request, response, next) => {
   try {
     const quarter = z.enum(["Q1", "Q2", "Q3", "Q4"]).parse(request.params.quarter);
     const payload = checkInPayloadSchema.parse(request.body);
-    const checkIn = await upsertEmployeeCheckIn(request.user.id, request.params.goalId, quarter, payload);
+    const goalId = z.string().uuid().parse(request.params.goalId);
+    const checkIn = await upsertEmployeeCheckIn(request.user.id, goalId, quarter, payload, request.audit);
     return response.json({ checkIn });
   } catch (error) {
     if (error instanceof z.ZodError) {

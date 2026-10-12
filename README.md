@@ -17,7 +17,7 @@ These screenshots show the current interface before the redesign. See the [desig
 
 ## Run locally
 
-Use Node.js 18.19 or newer and PostgreSQL 14 or newer. Copy `server/.env.example` to `server/.env`, then set `DATABASE_URL` and a development `JWT_SECRET`. Copy `client/.env.example` to `client/.env` and set `VITE_API_BASE_URL=http://localhost:4000/api`.
+Use Node.js 18.19 or newer and PostgreSQL 14 or newer. Copy `server/.env.example` to `server/.env`, then set `DATABASE_URL` and a development `JWT_SECRET`. Copy `client/.env.example` to `client/.env`; its `/api` base URL uses the Vite development proxy.
 
 ```bash
 npm install
@@ -38,6 +38,17 @@ The three primary demo accounts share the development password `Password123!`:
 | HR administrator | `admin@atomberg.local` |
 
 Use `npm run seed` for the original minimal three-user seed. Run `npm run lint` and `npm run build` before committing.
+
+## Backend checks
+
+The integration suite requires a separate PostgreSQL database whose name ends in `_test`; it refuses any other database. With Docker, start the test service, then run the tests:
+
+```bash
+docker compose --profile test up -d postgres_test
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/goal_tracker_test?schema=public npm test
+```
+
+Tests apply pending migrations and truncate the dedicated database before each case. `npm run prisma:migrate` creates development migrations; `npm run prisma:deploy` applies committed migrations in deployment. Existing `init` migrations have been left intact. Audit rows reject UPDATE and DELETE through a PostgreSQL trigger; a database administrator can still truncate during recovery or test resets. API writes require an allowed Origin, and cookie-authenticated writes also send `X-Requested-With: XMLHttpRequest`.
 
 ## Documentation
 

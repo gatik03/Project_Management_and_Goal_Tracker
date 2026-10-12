@@ -10,6 +10,8 @@ import {
 import { formatZodError } from "./goal.validation.js";
 
 const router = Router();
+const idSchema = z.string().uuid();
+const pageSchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional(), cursor: idSchema.optional() });
 
 const managerGoalUpdateSchema = z.object({
   target: z.string().trim().min(1, "Target is required").max(120).optional(),
@@ -26,7 +28,7 @@ router.use(requireAuth, requireRole("MANAGER"));
 
 router.get("/goals", async (request, response, next) => {
   try {
-    const goals = await listManagerTeamGoals(request.user.id);
+    const goals = await listManagerTeamGoals(request.user.id, pageSchema.parse(request.query));
     return response.json({ goals });
   } catch (error) {
     return next(error);
@@ -36,7 +38,7 @@ router.get("/goals", async (request, response, next) => {
 router.patch("/goals/:goalId", async (request, response, next) => {
   try {
     const payload = managerGoalUpdateSchema.parse(request.body);
-    const goal = await updateManagerGoalFields(request.user.id, request.params.goalId, payload);
+    const goal = await updateManagerGoalFields(request.user.id, idSchema.parse(request.params.goalId), payload, request.audit);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -49,7 +51,7 @@ router.patch("/goals/:goalId", async (request, response, next) => {
 
 router.post("/goals/:goalId/approve", async (request, response, next) => {
   try {
-    const goal = await approveManagerGoal(request.user.id, request.params.goalId);
+    const goal = await approveManagerGoal(request.user.id, idSchema.parse(request.params.goalId), request.audit);
     return response.json({ goal });
   } catch (error) {
     return next(error);
@@ -59,7 +61,7 @@ router.post("/goals/:goalId/approve", async (request, response, next) => {
 router.post("/goals/:goalId/reject", async (request, response, next) => {
   try {
     const payload = rejectionSchema.parse(request.body);
-    const goal = await rejectManagerGoal(request.user.id, request.params.goalId, payload.managerNote);
+    const goal = await rejectManagerGoal(request.user.id, idSchema.parse(request.params.goalId), payload.managerNote, request.audit);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {

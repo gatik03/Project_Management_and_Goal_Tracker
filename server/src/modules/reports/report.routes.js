@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
-import { toCsv, toExcelHtml } from "./export.service.js";
+import { toCsv, toXlsx } from "./export.service.js";
 import { getReportExportRows, getReportingDashboard } from "./report.service.js";
 
 const router = Router();
@@ -48,9 +48,9 @@ router.get("/export.xls", async (request, response, next) => {
   try {
     const filters = parseFilters(request);
     const rows = await getReportExportRows(request.user, filters);
-    response.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
-    response.setHeader("Content-Disposition", "attachment; filename=achievement-report.xls");
-    return response.send(toExcelHtml(rows));
+    response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", "attachment; filename=achievement-report.xlsx");
+    return response.send(await toXlsx(rows));
   } catch (error) {
     return next(error);
   }

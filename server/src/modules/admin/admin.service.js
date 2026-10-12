@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma.js";
+import { withSerializableTransaction } from "../../config/transaction.js";
 
 const userSelect = {
   id: true,
@@ -87,52 +88,56 @@ export async function getAdminDashboard() {
   };
 }
 
-export async function listUsers() {
+export async function listUsers(pagination = {}) {
   return prisma.user.findMany({
-    orderBy: [{ role: "asc" }, { name: "asc" }],
+    orderBy: [{ role: "asc" }, { name: "asc" }, { id: "asc" }],
+    ...(pagination.limit ? { take: pagination.limit } : {}),
+    ...(pagination.cursor ? { cursor: { id: pagination.cursor }, skip: 1 } : {}),
     select: userSelect
   });
 }
 
 export async function updateUser(userId, payload, audit) {
-  const oldUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: userSelect
-  });
-
-  if (!oldUser) {
-    throw createHttpError("User not found", 404);
-  }
-
-  if (payload.managerId) {
-    const manager = await prisma.user.findFirst({
-      where: { id: payload.managerId, role: "MANAGER", isActive: true }
+  return withSerializableTransaction(async (db) => {
+    const oldUser = await db.user.findUnique({
+      where: { id: userId },
+      select: userSelect
     });
 
-    if (!manager) {
-      throw createHttpError("Selected manager is not an active manager");
+    if (!oldUser) {
+      throw createHttpError("User not found", 404);
     }
-  }
 
-  if (payload.managerId === userId) {
-    throw createHttpError("A user cannot be their own manager");
-  }
+    if (payload.managerId) {
+      const manager = await db.user.findFirst({
+        where: { id: payload.managerId, role: "MANAGER", isActive: true }
+      });
 
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: payload,
-    select: userSelect
+      if (!manager) {
+        throw createHttpError("Selected manager is not an active manager");
+      }
+    }
+
+    if (payload.managerId === userId) {
+      throw createHttpError("A user cannot be their own manager");
+    }
+
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: payload,
+      select: userSelect
+    });
+
+    await audit({
+      action: "USER_UPDATED",
+      entityType: "User",
+      entityId: userId,
+      oldValue: oldUser,
+      newValue: updatedUser
+    }, db);
+
+    return updatedUser;
   });
-
-  await audit({
-    action: "USER_UPDATED",
-    entityType: "User",
-    entityId: userId,
-    oldValue: oldUser,
-    newValue: updatedUser
-  });
-
-  return updatedUser;
 }
 
 export async function listOrgHierarchy() {
@@ -199,64 +204,67 @@ export async function listUnlockableGoals() {
 }
 
 export async function unlockGoal(goalId, reason, audit) {
-  const oldGoal = await prisma.goal.findUnique({
-    where: { id: goalId },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true
+  return withSerializableTransaction(async (db) => {
+    const oldGoal = await db.goal.findUnique({
+      where: { id: goalId },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
       }
+    });
+
+    if (!oldGoal) {
+      throw createHttpError("Goal not found", 404);
     }
-  });
 
-  if (!oldGoal) {
-    throw createHttpError("Goal not found", 404);
-  }
+    if (!["SUBMITTED", "APPROVED", "LOCKED"].includes(oldGoal.status)) {
+      throw createHttpError("Only submitted, approved, or locked goals can be unlocked");
+    }
 
-  if (!["SUBMITTED", "APPROVED", "LOCKED"].includes(oldGoal.status)) {
-    throw createHttpError("Only submitted, approved, or locked goals can be unlocked");
-  }
-
-  const updatedGoal = await prisma.goal.update({
-    where: { id: goalId },
-    data: {
-      status: "REWORK_REQUIRED",
-      lockedAt: null,
-      managerNote: reason,
-      reviewedAt: new Date(),
-      reviewedById: null
-    },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          department: true,
-          title: true
+    const updatedGoal = await db.goal.update({
+      where: { id: goalId },
+      data: {
+        status: "REWORK_REQUIRED",
+        lockedAt: null,
+        managerNote: reason,
+        reviewedAt: new Date(),
+        reviewedById: null
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            department: true,
+            title: true
+          }
         }
       }
-    }
-  });
+    });
 
-  await audit({
-    action: "GOAL_UNLOCKED",
-    entityType: "Goal",
-    entityId: goalId,
-    oldValue: normalizeGoal(oldGoal),
-    newValue: normalizeGoal(updatedGoal)
-  });
+    await audit({
+      action: "GOAL_UNLOCKED",
+      entityType: "Goal",
+      entityId: goalId,
+      oldValue: normalizeGoal(oldGoal),
+      newValue: normalizeGoal(updatedGoal)
+    }, db);
 
-  return normalizeGoal(updatedGoal);
+    return normalizeGoal(updatedGoal);
+  });
 }
 
-export async function listAuditLogs() {
+export async function listAuditLogs(pagination = {}) {
   return prisma.auditLog.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 100
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: pagination.limit ?? 100,
+    ...(pagination.cursor ? { cursor: { id: pagination.cursor }, skip: 1 } : {})
   });
 }
 
@@ -273,41 +281,43 @@ export async function listCycleConfigs() {
 }
 
 export async function upsertCycleConfig(payload, audit) {
-  const oldCycle = await prisma.quarterlyCycleConfig.findUnique({
-    where: {
-      year_quarter: {
-        year: payload.year,
-        quarter: payload.quarter
+  return withSerializableTransaction(async (db) => {
+    const oldCycle = await db.quarterlyCycleConfig.findUnique({
+      where: {
+        year_quarter: {
+          year: payload.year,
+          quarter: payload.quarter
+        }
       }
+    });
+
+    if (payload.endDate <= payload.startDate) {
+      throw createHttpError("Cycle end date must be after start date");
     }
+
+    const cycle = await db.quarterlyCycleConfig.upsert({
+      where: {
+        year_quarter: {
+          year: payload.year,
+          quarter: payload.quarter
+        }
+      },
+      update: payload,
+      create: payload
+    });
+
+    await audit({
+      action: "CYCLE_CONFIG_UPDATED",
+      entityType: "QuarterlyCycleConfig",
+      entityId: cycle.id,
+      oldValue: oldCycle,
+      newValue: cycle
+    }, db);
+
+    return {
+      ...cycle,
+      startDate: cycle.startDate.toISOString().slice(0, 10),
+      endDate: cycle.endDate.toISOString().slice(0, 10)
+    };
   });
-
-  if (payload.endDate <= payload.startDate) {
-    throw createHttpError("Cycle end date must be after start date");
-  }
-
-  const cycle = await prisma.quarterlyCycleConfig.upsert({
-    where: {
-      year_quarter: {
-        year: payload.year,
-        quarter: payload.quarter
-      }
-    },
-    update: payload,
-    create: payload
-  });
-
-  await audit({
-    action: "CYCLE_CONFIG_UPDATED",
-    entityType: "QuarterlyCycleConfig",
-    entityId: cycle.id,
-    oldValue: oldCycle,
-    newValue: cycle
-  });
-
-  return {
-    ...cycle,
-    startDate: cycle.startDate.toISOString().slice(0, 10),
-    endDate: cycle.endDate.toISOString().slice(0, 10)
-  };
 }

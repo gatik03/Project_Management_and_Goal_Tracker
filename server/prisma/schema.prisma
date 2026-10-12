@@ -46,6 +46,16 @@ enum AuditAction {
   USER_UPDATED
   GOAL_UNLOCKED
   CYCLE_CONFIG_UPDATED
+  GOAL_SUBMITTED
+  GOAL_EDITED_BY_MANAGER
+  GOAL_APPROVED
+  GOAL_REWORK_REQUESTED
+  CHECKIN_SAVED
+  CHECKIN_COMMENTED
+  LOGIN_FAILED
+  GOAL_CREATED
+  GOAL_UPDATED
+  GOAL_DELETED
 }
 
 model User {
@@ -64,6 +74,9 @@ model User {
   updatedAt    DateTime @updatedAt
   goals        Goal[]   @relation("EmployeeGoals")
   reviewedGoals Goal[]  @relation("ReviewedGoals")
+
+  @@index([managerId])
+  @@index([department])
 }
 
 model Goal {

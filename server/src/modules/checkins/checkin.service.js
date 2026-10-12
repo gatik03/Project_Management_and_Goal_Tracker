@@ -1,4 +1,5 @@
 import { prisma } from "../../config/prisma.js";
+import { withSerializableTransaction } from "../../config/transaction.js";
 import { calculateProgress, calculateTimelineCompletion } from "./progress.engine.js";
 
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
@@ -57,39 +58,44 @@ export async function listEmployeeQuarterlyCheckIns(employeeId) {
   return goals.map(normalizeGoalWithCheckIns);
 }
 
-export async function upsertEmployeeCheckIn(employeeId, goalId, quarter, payload) {
-  const goal = await prisma.goal.findFirst({
-    where: {
-      id: goalId,
-      employeeId,
-      status: { in: ["SUBMITTED", "APPROVED", "LOCKED"] }
+export async function upsertEmployeeCheckIn(employeeId, goalId, quarter, payload, audit) {
+  return withSerializableTransaction(async (db) => {
+    const goal = await db.goal.findFirst({
+      where: {
+        id: goalId,
+        employeeId,
+        status: { in: ["SUBMITTED", "APPROVED", "LOCKED"] }
+      }
+    });
+
+    if (!goal) {
+      throw createHttpError("Goal not found for quarterly check-in", 404);
     }
-  });
 
-  if (!goal) {
-    throw createHttpError("Goal not found for quarterly check-in", 404);
-  }
-
-  const checkIn = await prisma.quarterlyCheckIn.upsert({
-    where: {
-      goalId_quarter: {
+    const oldCheckIn = await db.quarterlyCheckIn.findUnique({ where: { goalId_quarter: { goalId, quarter } } });
+    const checkIn = await db.quarterlyCheckIn.upsert({
+      where: {
+        goalId_quarter: {
+          goalId,
+          quarter
+        }
+      },
+      update: {
+        ...payload,
+        managerComment: undefined,
+        reviewedAt: undefined
+      },
+      create: {
+        ...payload,
         goalId,
         quarter
       }
-    },
-    update: {
-      ...payload,
-      managerComment: undefined,
-      reviewedAt: undefined
-    },
-    create: {
-      ...payload,
-      goalId,
-      quarter
-    }
-  });
+    });
 
-  return normalizeCheckIn(checkIn);
+    await audit({ action: "CHECKIN_SAVED", entityType: "QuarterlyCheckIn", entityId: checkIn.id, oldValue: oldCheckIn, newValue: checkIn }, db);
+
+    return normalizeCheckIn(checkIn);
+  });
 }
 
 export async function listManagerQuarterlyCheckIns(managerId) {
@@ -118,27 +124,31 @@ export async function listManagerQuarterlyCheckIns(managerId) {
   return goals.map(normalizeGoalWithCheckIns);
 }
 
-export async function addManagerCheckInComment(managerId, checkInId, managerComment) {
-  const checkIn = await prisma.quarterlyCheckIn.findFirst({
-    where: {
-      id: checkInId,
-      goal: {
-        employee: { managerId }
+export async function addManagerCheckInComment(managerId, checkInId, managerComment, audit) {
+  return withSerializableTransaction(async (db) => {
+    const checkIn = await db.quarterlyCheckIn.findFirst({
+      where: {
+        id: checkInId,
+        goal: {
+          employee: { managerId }
+        }
       }
+    });
+
+    if (!checkIn) {
+      throw createHttpError("Quarterly update not found for this manager's team", 404);
     }
+
+    const updated = await db.quarterlyCheckIn.update({
+      where: { id: checkInId },
+      data: {
+        managerComment,
+        reviewedAt: new Date()
+      }
+    });
+
+    await audit({ action: "CHECKIN_COMMENTED", entityType: "QuarterlyCheckIn", entityId: checkInId, oldValue: checkIn, newValue: updated }, db);
+
+    return normalizeCheckIn(updated);
   });
-
-  if (!checkIn) {
-    throw createHttpError("Quarterly update not found for this manager's team", 404);
-  }
-
-  const updated = await prisma.quarterlyCheckIn.update({
-    where: { id: checkInId },
-    data: {
-      managerComment,
-      reviewedAt: new Date()
-    }
-  });
-
-  return normalizeCheckIn(updated);
 }

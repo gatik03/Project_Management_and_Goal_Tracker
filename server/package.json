@@ -9,9 +9,11 @@
     "build": "node --check src/server.js",
     "lint": "eslint src --ext .js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "seed": "node prisma/seed.js",
-    "seed:demo": "node prisma/seed-demo.js"
+    "seed:demo": "node prisma/seed-demo.js",
+    "test": "NODE_ENV=test JWT_SECRET=local-test-secret-at-least-twenty-four-characters CLIENT_ORIGINS=http://app.test TRUST_PROXY_HOPS=2 vitest run"
   },
   "dependencies": {
     "@prisma/client": "^5.13.0",
@@ -20,18 +22,20 @@
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "express": "^4.18.3",
     "express-rate-limit": "^8.5.2",
     "helmet": "^7.1.0",
     "hpp": "^0.2.3",
     "jsonwebtoken": "^9.0.2",
-    "morgan": "^1.10.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
     "nodemon": "^3.1.0",
-    "prisma": "^5.13.0"
+    "prisma": "^5.13.0",
+    "supertest": "^7.3.1",
+    "vitest": "^2.1.9"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

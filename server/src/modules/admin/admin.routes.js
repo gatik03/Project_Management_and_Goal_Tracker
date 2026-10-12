@@ -14,6 +14,8 @@ import {
 } from "./admin.service.js";
 
 const router = Router();
+const idSchema = z.string().uuid();
+const pageSchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional(), cursor: idSchema.optional() });
 
 const userUpdateSchema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
@@ -50,9 +52,9 @@ router.get("/dashboard", async (_request, response, next) => {
   }
 });
 
-router.get("/users", async (_request, response, next) => {
+router.get("/users", async (request, response, next) => {
   try {
-    return response.json({ users: await listUsers() });
+    return response.json({ users: await listUsers(pageSchema.parse(request.query)) });
   } catch (error) {
     return next(error);
   }
@@ -61,7 +63,7 @@ router.get("/users", async (_request, response, next) => {
 router.patch("/users/:userId", async (request, response, next) => {
   try {
     const payload = userUpdateSchema.parse(request.body);
-    const user = await updateUser(request.params.userId, payload, request.audit);
+    const user = await updateUser(idSchema.parse(request.params.userId), payload, request.audit);
     return response.json({ user });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -91,7 +93,7 @@ router.get("/goals/unlockable", async (_request, response, next) => {
 router.post("/goals/:goalId/unlock", async (request, response, next) => {
   try {
     const payload = unlockSchema.parse(request.body);
-    const goal = await unlockGoal(request.params.goalId, payload.reason, request.audit);
+    const goal = await unlockGoal(idSchema.parse(request.params.goalId), payload.reason, request.audit);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -102,9 +104,9 @@ router.post("/goals/:goalId/unlock", async (request, response, next) => {
   }
 });
 
-router.get("/audit-logs", async (_request, response, next) => {
+router.get("/audit-logs", async (request, response, next) => {
   try {
-    return response.json({ auditLogs: await listAuditLogs() });
+    return response.json({ auditLogs: await listAuditLogs(pageSchema.parse(request.query)) });
   } catch (error) {
     return next(error);
   }

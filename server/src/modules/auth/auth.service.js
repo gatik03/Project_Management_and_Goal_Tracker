@@ -3,6 +3,10 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
 
+// A valid bcrypt hash keeps the unknown/inactive-account path close to the
+// normal password path without consulting another user's credential.
+const dummyPasswordHash = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5ptj5JSNUmFc5vGTD6J0x9hW8E6YjOm";
+
 const userSelect = {
   id: true,
   name: true,
@@ -23,17 +27,14 @@ export async function login({ email, password }) {
     where: { email: email.toLowerCase() }
   });
 
-  if (!user?.isActive) {
-    return null;
-  }
+  const isPasswordValid = await bcrypt.compare(password, user?.isActive ? user.passwordHash : dummyPasswordHash);
 
-  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-  if (!isPasswordValid) {
+  if (!user?.isActive || !isPasswordValid) {
     return null;
   }
 
   const token = jwt.sign({ role: user.role }, env.JWT_SECRET, {
+    algorithm: "HS256",
     subject: user.id,
     expiresIn: env.JWT_EXPIRES_IN
   });
