@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { withSerializableTransaction } from "../../config/transaction.js";
+import { notify } from "../notifications/notification.service.js";
 
 const userSelect = {
   id: true,
@@ -203,7 +204,7 @@ export async function listUnlockableGoals() {
   return goals.map(normalizeGoal);
 }
 
-export async function unlockGoal(goalId, reason, audit) {
+export async function unlockGoal(goalId, reason, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const oldGoal = await db.goal.findUnique({
       where: { id: goalId },
@@ -255,6 +256,11 @@ export async function unlockGoal(goalId, reason, audit) {
       oldValue: normalizeGoal(oldGoal),
       newValue: normalizeGoal(updatedGoal)
     }, db);
+    await notify(db, {
+      recipientId: oldGoal.employeeId, type: "GOAL_UNLOCKED", actorName,
+      title: `${actorName} unlocked a goal`,
+      detail: `${oldGoal.title}: ${reason}`, href: `/plan/${goalId}`
+    });
 
     return normalizeGoal(updatedGoal);
   });

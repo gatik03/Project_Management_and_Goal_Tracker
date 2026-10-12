@@ -91,7 +91,7 @@ const teams = [
 
 async function main() {
   const passwordHash = await bcrypt.hash("Password123!", 12);
-  const totals = { users: 0, goals: 0, checkIns: 0, auditLogs: 0, cycles: 0 };
+  const totals = { users: 0, goals: 0, checkIns: 0, auditLogs: 0, notifications: 0, cycles: 0 };
 
   await prisma.$transaction(async (db) => {
     async function userRecord(data) {
@@ -195,6 +195,38 @@ async function main() {
           newValue: { managerId: manager.id, title: employee.title },
           createdAt: new Date(Date.UTC(year, 0, 8 + employeeIndex))
         });
+        const notices = [];
+        if (employeeIndex === 0) {
+          notices.push({
+            id: fixtureId(`notification:rework:${email}`), recipientId: employee.id,
+            type: "GOAL_REWORK_REQUESTED", actorName: manager.name,
+            title: `${manager.name} sent a goal back`,
+            detail: `${team.goals[0][0]}: Specify the baseline and measurement source before resubmitting.`,
+            href: `/plan/${fixtureId(`goal:${email}:0`)}`,
+            createdAt: new Date(Date.UTC(year, 8, 15))
+          });
+        }
+        if (planStatus === "SUBMITTED") {
+          notices.push({
+            id: fixtureId(`notification:submission:${email}`), recipientId: manager.id,
+            type: "PLAN_SUBMITTED", actorName: employee.name,
+            title: `${employee.name} submitted a plan`, detail: "Four goals are ready for review.",
+            href: `/team/${employee.id}`, createdAt: new Date(Date.UTC(year, 8, 18))
+          });
+        }
+        if (employeeIndex === 4) {
+          notices.push({
+            id: fixtureId(`notification:checkin:${email}`), recipientId: manager.id,
+            type: "CHECKIN_SAVED", actorName: employee.name,
+            title: `${employee.name} updated a Q3 check-in`,
+            detail: `${team.goals[0][0]}: completed.`, href: "/team/check-ins",
+            createdAt: new Date(Date.UTC(year, 8, 20))
+          });
+        }
+        if (notices.length) {
+          await db.notification.createMany({ data: notices, skipDuplicates: true });
+          totals.notifications += notices.length;
+        }
         employeeIndex += 1;
       }
     }

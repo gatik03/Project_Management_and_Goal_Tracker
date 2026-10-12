@@ -1,6 +1,7 @@
 import { prisma } from "../../config/prisma.js";
 import { withSerializableTransaction } from "../../config/transaction.js";
 import { calculateProgress, calculateTimelineCompletion } from "./progress.engine.js";
+import { notify } from "../notifications/notification.service.js";
 
 const quarters = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -58,14 +59,15 @@ export async function listEmployeeQuarterlyCheckIns(employeeId) {
   return goals.map(normalizeGoalWithCheckIns);
 }
 
-export async function upsertEmployeeCheckIn(employeeId, goalId, quarter, payload, audit) {
+export async function upsertEmployeeCheckIn(employeeId, goalId, quarter, payload, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const goal = await db.goal.findFirst({
       where: {
         id: goalId,
         employeeId,
         status: { in: ["SUBMITTED", "APPROVED", "LOCKED"] }
-      }
+      },
+      include: { employee: { select: { managerId: true, name: true } } }
     });
 
     if (!goal) {
@@ -93,6 +95,16 @@ export async function upsertEmployeeCheckIn(employeeId, goalId, quarter, payload
     });
 
     await audit({ action: "CHECKIN_SAVED", entityType: "QuarterlyCheckIn", entityId: checkIn.id, oldValue: oldCheckIn, newValue: checkIn }, db);
+    const changed = !oldCheckIn || ["plannedTarget", "actualAchievement", "status", "employeeNote"]
+      .some((field) => oldCheckIn[field] !== checkIn[field]);
+    if (changed) {
+      await notify(db, {
+        recipientId: goal.employee.managerId, type: "CHECKIN_SAVED",
+        actorName, title: `${actorName} updated a ${quarter} check-in`,
+        detail: `${goal.title}: ${checkIn.status.toLowerCase().replaceAll("_", " ")}.`,
+        href: "/team/check-ins"
+      });
+    }
 
     return normalizeCheckIn(checkIn);
   });
@@ -124,7 +136,7 @@ export async function listManagerQuarterlyCheckIns(managerId) {
   return goals.map(normalizeGoalWithCheckIns);
 }
 
-export async function addManagerCheckInComment(managerId, checkInId, managerComment, audit) {
+export async function addManagerCheckInComment(managerId, checkInId, managerComment, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const checkIn = await db.quarterlyCheckIn.findFirst({
       where: {
@@ -132,7 +144,8 @@ export async function addManagerCheckInComment(managerId, checkInId, managerComm
         goal: {
           employee: { managerId }
         }
-      }
+      },
+      include: { goal: { select: { employeeId: true, title: true } } }
     });
 
     if (!checkIn) {
@@ -148,6 +161,14 @@ export async function addManagerCheckInComment(managerId, checkInId, managerComm
     });
 
     await audit({ action: "CHECKIN_COMMENTED", entityType: "QuarterlyCheckIn", entityId: checkInId, oldValue: checkIn, newValue: updated }, db);
+    if (managerComment !== checkIn.managerComment) {
+      await notify(db, {
+        recipientId: checkIn.goal.employeeId, type: "CHECKIN_COMMENTED", actorName,
+        title: `${actorName} commented on a check-in`,
+        detail: `${checkIn.goal.title}: ${managerComment}`,
+        href: "/check-ins"
+      });
+    }
 
     return normalizeCheckIn(updated);
   });

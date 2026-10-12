@@ -16,6 +16,16 @@ GET  /auth/permissions
 GET  /cycles/active
 ```
 
+## Notifications (employee and manager)
+
+```text
+GET   /notifications?limit=20&cursor=<notification-id>
+PATCH /notifications/:id/read
+POST  /notifications/read-all
+```
+
+The list returns `{ notifications, nextCursor, unreadCount }`, newest first. Each notification includes a title, detail, actor name, destination path, creation time and optional read time. Mark-read actions only affect the signed-in recipient and are audited. New notifications begin with actions after the notification migration; historic audit rows are not backfilled.
+
 ## Employee Goals
 
 ```text
@@ -31,9 +41,12 @@ POST   /employee/goals/submit
 ```text
 GET   /manager/goals
 PATCH /manager/goals/:goalId
+PUT   /manager/employees/:employeeId/weights
 POST  /manager/goals/:goalId/approve
 POST  /manager/goals/:goalId/reject
 ```
+
+`PUT /manager/employees/:employeeId/weights` accepts `{ "changes": [{ "goalId": "<uuid>", "weightage": 45, "expectedUpdatedAt": "<ISO timestamp>" }, ...] }` for at least two goals. It returns `{ goals }`. All changed goals must belong to the manager's direct report and be submitted or returned for rework. The entire plan must finish at exactly 100%; approved and locked weights cannot change. A stale timestamp, a hidden draft goal, or an ineligible state returns 409. The update, per-goal audit rows and employee notification commit together.
 
 ## Quarterly Check-ins
 

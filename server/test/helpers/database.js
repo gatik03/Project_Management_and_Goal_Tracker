@@ -26,7 +26,7 @@ export function migrateTestDatabase() {
 export async function truncateTestDatabase() {
   assertTestDatabase();
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "QuarterlyCheckIn", "Goal", "AuditLog", "QuarterlyCycleConfig", "User" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "Notification", "QuarterlyCheckIn", "Goal", "AuditLog", "QuarterlyCycleConfig", "User" RESTART IDENTITY CASCADE'
   );
 }
 

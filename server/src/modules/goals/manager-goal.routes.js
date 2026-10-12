@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from "../../middleware/auth.js";
 import {
   approveManagerGoal,
   listManagerTeamGoals,
+  rebalanceManagerPlan,
   rejectManagerGoal,
   updateManagerGoalFields
 } from "./goal.service.js";
@@ -23,6 +24,15 @@ const managerGoalUpdateSchema = z.object({
 const rejectionSchema = z.object({
   managerNote: z.string().trim().min(5, "Rejection reason must be at least 5 characters").max(500)
 });
+const weightsSchema = z.object({
+  changes: z.array(z.object({
+    goalId: idSchema,
+    weightage: z.number().int().min(10).max(100),
+    expectedUpdatedAt: z.string().datetime()
+  }).strict()).min(2).max(8)
+}).strict().refine((payload) => new Set(payload.changes.map((item) => item.goalId)).size === payload.changes.length, {
+  message: "Each goal can appear only once"
+});
 
 router.use(requireAuth, requireRole("MANAGER"));
 
@@ -35,10 +45,21 @@ router.get("/goals", async (request, response, next) => {
   }
 });
 
+router.put("/employees/:employeeId/weights", async (request, response, next) => {
+  try {
+    const payload = weightsSchema.parse(request.body);
+    const goals = await rebalanceManagerPlan(
+      request.user.id, idSchema.parse(request.params.employeeId),
+      payload.changes, request.audit, request.user.name
+    );
+    return response.json({ goals });
+  } catch (error) { return next(error); }
+});
+
 router.patch("/goals/:goalId", async (request, response, next) => {
   try {
     const payload = managerGoalUpdateSchema.parse(request.body);
-    const goal = await updateManagerGoalFields(request.user.id, idSchema.parse(request.params.goalId), payload, request.audit);
+    const goal = await updateManagerGoalFields(request.user.id, idSchema.parse(request.params.goalId), payload, request.audit, request.user.name);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -51,7 +72,7 @@ router.patch("/goals/:goalId", async (request, response, next) => {
 
 router.post("/goals/:goalId/approve", async (request, response, next) => {
   try {
-    const goal = await approveManagerGoal(request.user.id, idSchema.parse(request.params.goalId), request.audit);
+    const goal = await approveManagerGoal(request.user.id, idSchema.parse(request.params.goalId), request.audit, request.user.name);
     return response.json({ goal });
   } catch (error) {
     return next(error);
@@ -61,7 +82,7 @@ router.post("/goals/:goalId/approve", async (request, response, next) => {
 router.post("/goals/:goalId/reject", async (request, response, next) => {
   try {
     const payload = rejectionSchema.parse(request.body);
-    const goal = await rejectManagerGoal(request.user.id, idSchema.parse(request.params.goalId), payload.managerNote, request.audit);
+    const goal = await rejectManagerGoal(request.user.id, idSchema.parse(request.params.goalId), payload.managerNote, request.audit, request.user.name);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {

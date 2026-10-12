@@ -17,6 +17,7 @@ import { goalRouter } from "./modules/goals/goal.routes.js";
 import { managerGoalRouter } from "./modules/goals/manager-goal.routes.js";
 import { healthRouter } from "./modules/health/health.routes.js";
 import { activeCycleRouter } from "./modules/cycles/active.routes.js";
+import { notificationRouter } from "./modules/notifications/notification.routes.js";
 import { reportRouter } from "./modules/reports/report.routes.js";
 
 export function createApp({ onRequest } = {}) {
@@ -69,6 +70,7 @@ export function createApp({ onRequest } = {}) {
   app.use("/api/health", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/cycles", activeCycleRouter);
+  app.use("/api/notifications", notificationRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/employee/goals", goalRouter);
   app.use("/api/employee/check-ins", employeeCheckInRouter);

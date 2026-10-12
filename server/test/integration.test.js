@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app.js";
 import { prisma } from "../src/config/prisma.js";
-import { createEmployeeGoal } from "../src/modules/goals/goal.service.js";
+import { createEmployeeGoal, rebalanceManagerPlan } from "../src/modules/goals/goal.service.js";
 import {
   bearer, createGoal, createUser, goalPayload, migrateTestDatabase, truncateTestDatabase
 } from "./helpers/database.js";
@@ -65,6 +65,7 @@ describe("authentication and role boundaries", () => {
     ["/api/auth/me", ["EMPLOYEE", "MANAGER", "ADMIN"]],
     ["/api/auth/permissions", ["EMPLOYEE", "MANAGER", "ADMIN"]],
     ["/api/cycles/active", ["EMPLOYEE", "MANAGER", "ADMIN"]],
+    ["/api/notifications", ["EMPLOYEE", "MANAGER"]],
     ["/api/auth/admin-check", ["ADMIN"]],
     ["/api/employee/goals", ["EMPLOYEE"]],
     ["/api/employee/check-ins", ["EMPLOYEE"]],
@@ -109,6 +110,7 @@ describe("authentication and role boundaries", () => {
       ["post", "/api/employee/goals/submit", "EMPLOYEE"],
       ["put", "/api/employee/check-ins/00000000-0000-4000-a000-000000000001/Q1", "EMPLOYEE"],
       ["patch", "/api/manager/goals/00000000-0000-4000-a000-000000000001", "MANAGER"],
+      ["put", `/api/manager/employees/${employee.id}/weights`, "MANAGER"],
       ["post", "/api/manager/goals/00000000-0000-4000-a000-000000000001/approve", "MANAGER"],
       ["post", "/api/manager/goals/00000000-0000-4000-a000-000000000001/reject", "MANAGER"],
       ["post", "/api/manager/check-ins/00000000-0000-4000-a000-000000000001/comment", "MANAGER"],
@@ -191,6 +193,112 @@ describe("goals and reviews", () => {
     expect((await call("patch", `/api/manager/goals/${first.id}`, manager).send({ weightage: 60 })).status).toBe(400);
     expect((await call("patch", `/api/manager/goals/${first.id}`, manager).send({ target: "94" })).status).toBe(200);
     expect(await prisma.auditLog.count({ where: { action: "GOAL_EDITED_BY_MANAGER" } })).toBe(1);
+    expect(await prisma.notification.findFirst({ where: { recipientId: employee.id } })).toMatchObject({
+      type: "GOAL_TARGET_CHANGED", href: `/plan/${first.id}`
+    });
+  });
+
+  it("rebalance weights atomically, reject stale or foreign edits, and notify the employee", async () => {
+    const first = await createGoal(employee.id, "SUBMITTED", 40, "Improve motor efficiency");
+    const second = await createGoal(employee.id, "REWORK_REQUIRED", 60, "Reduce supplier defects");
+    const changes = [
+      { goalId: first.id, weightage: 45, expectedUpdatedAt: first.updatedAt.toISOString() },
+      { goalId: second.id, weightage: 55, expectedUpdatedAt: second.updatedAt.toISOString() }
+    ];
+    const path = `/api/manager/employees/${employee.id}/weights`;
+    const orderBefore = (await call("get", "/api/manager/goals", manager)).body.goals
+      .filter((goal) => goal.employee.id === employee.id).map((goal) => goal.id);
+    expect((await call("put", path, otherManager).send({ changes })).status).toBe(404);
+    expect((await call("put", path, manager).send({ changes: [
+      changes[0], { ...changes[1], weightage: 60 }
+    ] })).status).toBe(400);
+    expect(await prisma.notification.count()).toBe(0);
+    const saved = await call("put", path, manager).send({ changes });
+    expect(saved.status).toBe(200);
+    expect(saved.body.goals.map((goal) => goal.weightage).sort()).toEqual([45, 55]);
+    const orderAfter = (await call("get", "/api/manager/goals", manager)).body.goals
+      .filter((goal) => goal.employee.id === employee.id).map((goal) => goal.id);
+    expect(orderAfter).toEqual(orderBefore);
+    expect(await prisma.auditLog.count({ where: { action: "GOAL_EDITED_BY_MANAGER" } })).toBe(2);
+    const notice = await prisma.notification.findFirst({ where: { recipientId: employee.id } });
+    expect(notice).toMatchObject({ type: "GOAL_WEIGHTS_CHANGED", href: "/plan" });
+    expect(notice.detail).toContain("40% → 45%");
+    expect((await call("put", path, manager).send({ changes })).status).toBe(409);
+    expect(await prisma.notification.count()).toBe(1);
+    await prisma.goal.update({ where: { id: second.id }, data: { status: "APPROVED" } });
+    const freshFirst = await prisma.goal.findUnique({ where: { id: first.id } });
+    const freshSecond = await prisma.goal.findUnique({ where: { id: second.id } });
+    expect((await call("put", path, manager).send({ changes: [
+      { goalId: first.id, weightage: 50, expectedUpdatedAt: freshFirst.updatedAt.toISOString() },
+      { goalId: second.id, weightage: 50, expectedUpdatedAt: freshSecond.updatedAt.toISOString() }
+    ] })).status).toBe(409);
+    expect((await prisma.goal.findUnique({ where: { id: first.id } })).weightage).toBe(45);
+  });
+
+  it("allows one concurrent rebalance and rolls back when auditing fails", async () => {
+    const first = await createGoal(employee.id, "SUBMITTED", 40, "Improve motor efficiency");
+    const second = await createGoal(employee.id, "SUBMITTED", 60, "Reduce supplier defects");
+    const changes = [first, second].map((goal, index) => ({
+      goalId: goal.id, weightage: index === 0 ? 45 : 55,
+      expectedUpdatedAt: goal.updatedAt.toISOString()
+    }));
+    await expect(rebalanceManagerPlan(manager.id, employee.id, changes, async () => {
+      throw new Error("audit unavailable");
+    }, manager.name)).rejects.toThrow("audit unavailable");
+    expect((await prisma.goal.findUnique({ where: { id: first.id } })).weightage).toBe(40);
+    expect(await prisma.notification.count()).toBe(0);
+    const path = `/api/manager/employees/${employee.id}/weights`;
+    const attempts = await Promise.all([
+      call("put", path, manager).send({ changes }),
+      call("put", path, manager).send({ changes })
+    ]);
+    expect(attempts.map((result) => result.status).sort()).toEqual([200, 409]);
+    expect(await prisma.auditLog.count({ where: { action: "GOAL_EDITED_BY_MANAGER" } })).toBe(2);
+    expect(await prisma.notification.count()).toBe(1);
+  });
+
+  it("delivers recipient-scoped notifications for reviews and check-ins with persistent read state", async () => {
+    const goal = await createGoal(employee.id, "DRAFT", 100);
+    expect((await call("post", "/api/employee/goals/submit", employee)).status).toBe(200);
+    let managerFeed = await call("get", "/api/notifications", manager);
+    expect(managerFeed.body).toMatchObject({ unreadCount: 1 });
+    expect(managerFeed.body.notifications[0].type).toBe("PLAN_SUBMITTED");
+    expect((await call("get", "/api/notifications", otherManager)).body.notifications).toEqual([]);
+
+    expect((await call("post", `/api/manager/goals/${goal.id}/reject`, manager).send({
+      managerNote: "Add the supplier baseline"
+    })).status).toBe(200);
+    expect((await call("post", "/api/employee/goals/submit", employee)).status).toBe(200);
+    expect((await call("post", `/api/manager/goals/${goal.id}/approve`, manager)).status).toBe(200);
+    const checkIn = await call("put", `/api/employee/check-ins/${goal.id}/Q1`, employee).send({
+      plannedTarget: 92, actualAchievement: 108, status: "COMPLETED", employeeNote: "Validated at rated load"
+    });
+    expect(checkIn.status).toBe(200);
+    expect((await call("post", `/api/manager/check-ins/${checkIn.body.checkIn.id}/comment`, manager).send({
+      managerComment: "Confirmed against the lab sheet"
+    })).status).toBe(200);
+    expect((await call("post", `/api/admin/goals/${goal.id}/unlock`, admin).send({
+      reason: "Supplier specification changed"
+    })).status).toBe(200);
+
+    managerFeed = await call("get", "/api/notifications", manager);
+    expect(managerFeed.body.unreadCount).toBe(3);
+    expect(managerFeed.body.notifications.map((item) => item.type)).toContain("CHECKIN_SAVED");
+    const employeeFeed = await call("get", "/api/notifications?limit=2", employee);
+    expect(employeeFeed.body.unreadCount).toBe(4);
+    expect(employeeFeed.body.notifications).toHaveLength(2);
+    expect(employeeFeed.body.nextCursor).toBeTruthy();
+    expect((await call("get", `/api/notifications?cursor=${employeeFeed.body.nextCursor}`, manager)).status).toBe(404);
+    const older = await call("get", `/api/notifications?limit=2&cursor=${employeeFeed.body.nextCursor}`, employee);
+    expect(older.body.notifications).toHaveLength(2);
+    const notificationId = employeeFeed.body.notifications[0].id;
+    expect((await call("patch", `/api/notifications/${notificationId}/read`, otherEmployee).send({})).status).toBe(404);
+    expect((await call("patch", `/api/notifications/${notificationId}/read`, employee).send({})).status).toBe(200);
+    expect((await call("get", "/api/notifications", employee)).body.unreadCount).toBe(3);
+    expect((await call("post", "/api/notifications/read-all", employee).send({})).body.updatedCount).toBe(3);
+    expect((await call("get", "/api/notifications", employee)).body.unreadCount).toBe(0);
+    expect((await call("get", "/api/notifications", manager)).body.unreadCount).toBe(3);
+    expect(await prisma.auditLog.count({ where: { action: "NOTIFICATIONS_READ" } })).toBe(2);
   });
 
   it("records check-in saves, manager comments, unlocks, and cycle/user changes", async () => {

@@ -93,7 +93,7 @@ router.get("/goals/unlockable", async (_request, response, next) => {
 router.post("/goals/:goalId/unlock", async (request, response, next) => {
   try {
     const payload = unlockSchema.parse(request.body);
-    const goal = await unlockGoal(idSchema.parse(request.params.goalId), payload.reason, request.audit);
+    const goal = await unlockGoal(idSchema.parse(request.params.goalId), payload.reason, request.audit, request.user.name);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {

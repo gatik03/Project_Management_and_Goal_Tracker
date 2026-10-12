@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { withSerializableTransaction } from "../../config/transaction.js";
+import { notify } from "../notifications/notification.service.js";
 
 const goalSelect = {
   id: true, title: true, description: true, thrustArea: true, uomType: true,
@@ -26,7 +27,7 @@ function createHttpError(message, statusCode = 400) {
 export async function listEmployeeGoals(employeeId, pagination = {}) {
   const goals = await prisma.goal.findMany({
     where: { employeeId },
-    orderBy: [{ status: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     ...(pagination.limit ? { take: pagination.limit } : {}),
     ...(pagination.cursor ? { cursor: { id: pagination.cursor }, skip: 1 } : {}),
     select: goalSelect
@@ -74,8 +75,11 @@ export async function deleteEmployeeGoal(employeeId, goalId, audit) {
   });
 }
 
-export async function submitEmployeeGoals(employeeId, audit) {
+export async function submitEmployeeGoals(employeeId, audit, actorName) {
   return withSerializableTransaction(async (db) => {
+    const employee = await db.user.findUnique({
+      where: { id: employeeId }, select: { managerId: true, name: true }
+    });
     const planGoals = await db.goal.findMany({
       where: { employeeId },
       select: { id: true, weightage: true, status: true }
@@ -94,8 +98,15 @@ export async function submitEmployeeGoals(employeeId, audit) {
       action: "GOAL_SUBMITTED", entityType: "User", entityId: employeeId,
       oldValue: draftGoals, newValue: draftGoals.map((goal) => ({ id: goal.id, status: "SUBMITTED", weightage: goal.weightage }))
     }, db);
+    await notify(db, {
+      recipientId: employee.managerId, type: "PLAN_SUBMITTED",
+      actorName: actorName ?? employee.name,
+      title: `${employee.name} submitted a plan`,
+      detail: `${draftGoals.length} goals are ready for review.`,
+      href: `/team/${employeeId}`
+    });
     const goals = await db.goal.findMany({
-      where: { employeeId }, orderBy: [{ status: "asc" }, { createdAt: "asc" }, { id: "asc" }], select: goalSelect
+      where: { employeeId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], select: goalSelect
     });
     return goals.map(normalizeGoal);
   });
@@ -104,7 +115,7 @@ export async function submitEmployeeGoals(employeeId, audit) {
 export async function listManagerTeamGoals(managerId, pagination = {}) {
   const goals = await prisma.goal.findMany({
     where: { employee: { managerId }, status: { not: "DRAFT" } },
-    orderBy: [{ employee: { name: "asc" } }, { updatedAt: "desc" }, { id: "asc" }],
+    orderBy: [{ employee: { name: "asc" } }, { createdAt: "asc" }, { id: "asc" }],
     ...(pagination.limit ? { take: pagination.limit } : {}),
     ...(pagination.cursor ? { cursor: { id: pagination.cursor }, skip: 1 } : {}),
     select: goalSelect
@@ -121,7 +132,7 @@ async function findManagerOwnedGoal(db, managerId, goalId) {
   return goal;
 }
 
-export async function updateManagerGoalFields(managerId, goalId, payload, audit) {
+export async function updateManagerGoalFields(managerId, goalId, payload, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const oldGoal = await findManagerOwnedGoal(db, managerId, goalId);
     if (!["SUBMITTED", "REWORK_REQUIRED"].includes(oldGoal.status)) {
@@ -137,11 +148,83 @@ export async function updateManagerGoalFields(managerId, goalId, payload, audit)
     }
     const goal = await db.goal.update({ where: { id: goalId }, data: payload, select: goalSelect });
     await audit({ action: "GOAL_EDITED_BY_MANAGER", entityType: "Goal", entityId: goalId, oldValue: oldGoal, newValue: goal }, db);
+    if (payload.target !== undefined && payload.target !== oldGoal.target) {
+      await notify(db, {
+        recipientId: oldGoal.employeeId, type: "GOAL_TARGET_CHANGED",
+        actorName, title: `${actorName} changed a goal target`,
+        detail: `${goal.title}: ${oldGoal.target} → ${goal.target}`,
+        href: `/plan/${goalId}`
+      });
+    }
+    if (payload.weightage !== undefined && payload.weightage !== oldGoal.weightage) {
+      await notify(db, {
+        recipientId: oldGoal.employeeId, type: "GOAL_WEIGHTS_CHANGED",
+        actorName, title: `${actorName} changed a goal weight`,
+        detail: `${goal.title}: ${oldGoal.weightage}% → ${goal.weightage}%`,
+        href: `/plan/${goalId}`
+      });
+    }
     return normalizeGoal(goal);
   });
 }
 
-export async function approveManagerGoal(managerId, goalId, audit) {
+export async function rebalanceManagerPlan(managerId, employeeId, changes, audit, actorName) {
+  return withSerializableTransaction(async (db) => {
+    const employee = await db.user.findFirst({
+      where: { id: employeeId, managerId }, select: { id: true, name: true }
+    });
+    if (!employee) throw createHttpError("Direct report not found", 404);
+    const plan = await db.goal.findMany({
+      where: { employeeId }, select: { ...goalSelect, employeeId: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+    });
+    if (plan.some((goal) => goal.status === "DRAFT")) {
+      throw createHttpError("The employee has draft goals. Ask them to submit the plan before changing weights.", 409);
+    }
+    const byId = new Map(plan.map((goal) => [goal.id, goal]));
+    for (const change of changes) {
+      const goal = byId.get(change.goalId);
+      if (!goal) throw createHttpError("Goal not found for this direct report", 404);
+      if (!["SUBMITTED", "REWORK_REQUIRED"].includes(goal.status)) {
+        throw createHttpError("Approved or locked goal weights cannot be changed", 409);
+      }
+      if (goal.updatedAt.toISOString() !== change.expectedUpdatedAt) {
+        throw createHttpError("This plan changed since you opened it. Refresh and try again.", 409);
+      }
+    }
+    const proposed = new Map(changes.map((item) => [item.goalId, item.weightage]));
+    const total = plan.reduce((sum, goal) => sum + (proposed.get(goal.id) ?? goal.weightage), 0);
+    if (total !== 100) throw createHttpError(`Goal weights must total exactly 100%. Proposed total is ${total}%.`);
+    const changed = changes.filter((item) => byId.get(item.goalId).weightage !== item.weightage);
+    if (!changed.length) return plan.map(normalizeGoal);
+    for (const change of changed) {
+      const oldGoal = byId.get(change.goalId);
+      const updated = await db.goal.update({
+        where: { id: change.goalId }, data: { weightage: change.weightage },
+        select: goalSelect
+      });
+      await audit({
+        action: "GOAL_EDITED_BY_MANAGER", entityType: "Goal", entityId: change.goalId,
+        oldValue: oldGoal, newValue: updated
+      }, db);
+    }
+    await notify(db, {
+      recipientId: employeeId, type: "GOAL_WEIGHTS_CHANGED", actorName,
+      title: `${actorName} rebalanced your plan`,
+      detail: changed.map(({ goalId, weightage }) =>
+        `${byId.get(goalId).title}: ${byId.get(goalId).weightage}% → ${weightage}%`
+      ).join("; "),
+      href: "/plan"
+    });
+    const refreshed = await db.goal.findMany({
+      where: { employeeId }, select: goalSelect,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }]
+    });
+    return refreshed.map(normalizeGoal);
+  });
+}
+
+export async function approveManagerGoal(managerId, goalId, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const oldGoal = await findManagerOwnedGoal(db, managerId, goalId);
     if (oldGoal.status !== "SUBMITTED") throw createHttpError("Only submitted goals can be approved");
@@ -154,11 +237,16 @@ export async function approveManagerGoal(managerId, goalId, audit) {
       select: goalSelect
     });
     await audit({ action: "GOAL_APPROVED", entityType: "Goal", entityId: goalId, oldValue: oldGoal, newValue: goal }, db);
+    await notify(db, {
+      recipientId: oldGoal.employeeId, type: "GOAL_APPROVED", actorName,
+      title: `${actorName} approved a goal`, detail: goal.title,
+      href: `/plan/${goalId}`
+    });
     return normalizeGoal(goal);
   });
 }
 
-export async function rejectManagerGoal(managerId, goalId, managerNote, audit) {
+export async function rejectManagerGoal(managerId, goalId, managerNote, audit, actorName) {
   return withSerializableTransaction(async (db) => {
     const oldGoal = await findManagerOwnedGoal(db, managerId, goalId);
     if (oldGoal.status !== "SUBMITTED") throw createHttpError("Only submitted goals can be sent for rework");
@@ -171,6 +259,11 @@ export async function rejectManagerGoal(managerId, goalId, managerNote, audit) {
       select: goalSelect
     });
     await audit({ action: "GOAL_REWORK_REQUESTED", entityType: "Goal", entityId: goalId, oldValue: oldGoal, newValue: goal }, db);
+    await notify(db, {
+      recipientId: oldGoal.employeeId, type: "GOAL_REWORK_REQUESTED", actorName,
+      title: `${actorName} sent a goal back`,
+      detail: `${goal.title}: ${managerNote}`, href: `/plan/${goalId}`
+    });
     return normalizeGoal(goal);
   });
 }

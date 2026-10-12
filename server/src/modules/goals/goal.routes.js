@@ -64,7 +64,7 @@ router.delete("/:goalId", async (request, response, next) => {
 
 router.post("/submit", async (request, response, next) => {
   try {
-    const goals = await submitEmployeeGoals(request.user.id, request.audit);
+    const goals = await submitEmployeeGoals(request.user.id, request.audit, request.user.name);
     return response.json({ goals });
   } catch (error) {
     return next(error);
