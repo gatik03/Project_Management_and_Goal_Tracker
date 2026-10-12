@@ -48,3 +48,11 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
 2. **Do Not Bypass Zod Schemas**: All incoming API requests must be validated through existing Zod schemas.
 3. **Database Migrations**: Whenever changing `prisma/schema.prisma`, generate Prisma client and migration scripts (`npm run prisma:generate`, `npm run prisma:migrate`).
 4. **Cookie Security**: Auth cookies require `httpOnly: true`, `sameSite: 'lax'`, and `secure: true` in production.
+
+## UI rules
+
+- Use the semantic colour, type, spacing, radius and motion tokens defined in `docs/design-brief.md`. Keep light and dark values together in CSS variables and wire them into Tailwind. Feature code must not use raw hex colours or one-off pixel values.
+- Build actions with the shared `Button` and `IconButton` variants in `client/src/ui`. Do not create one-off button styles or copy utility-class strings across features.
+- Every goal state must use `StatusGlyph` with both a glyph and a readable label. Never use colour alone to identify a state.
+- Motion budget: one short Plan Bar entrance on first load, about 500 ms. Other motion may only answer an action, should normally finish within 220 ms, and must respect reduced-motion preferences.
+- Avoid gradient washes or text, glassmorphism, purple-to-blue gradients, a centred hero with three feature cards, identical shadow cards, icons in tinted squares, KPI-card rows, uppercase tracked eyebrows, middle-dot metadata, “WORD - fragment” labels, tiny monospace labels, arrows appended to links, a single accented headline word, decorative sequence numbers, cream/serif/terracotta styling, black/acid-accent styling, broadsheet hairline decoration, emoji, “Welcome back” and stock illustrations.

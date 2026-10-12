@@ -10,7 +10,8 @@
     "lint": "eslint src --ext .js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "seed:demo": "node prisma/seed-demo.js"
   },
   "dependencies": {
     "@prisma/client": "^5.13.0",

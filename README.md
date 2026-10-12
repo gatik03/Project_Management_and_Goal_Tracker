@@ -1,124 +1,48 @@
-# Atomberg Goal & Performance Tracker
+# Goal tracker
 
-An enterprise-grade platform designed for organizations to seamlessly manage, align, and track employee goals across all departments. Built with a focus on usability, security, and real-time performance analytics, the platform empowers employees, managers, and administrators to drive organizational success.
+Goal tracker is a full-stack workspace for weighted employee goals, manager reviews, quarterly check-ins and HR administration. An employee can submit a plan when its goal weights total exactly 100%. Managers review direct reports; HR administrators manage people, cycles, goal unlocks and the audit trail.
 
-## Key Features
+These screenshots show the current interface before the redesign. See the [design brief](docs/design-brief.md) for the planned UI direction and the complete [before screenshots](docs/ui/before/).
 
-### For Employees
-*   **Intuitive Goal Setting:** Create and manage quarterly or annual goals with defined metrics, weightages, and clear deadlines.
-*   **Draft & Submit Workflow:** Draft goals over time and submit a comprehensive plan (totaling 100% weightage) when ready.
-*   **Progress Check-ins:** Update progress quarterly with actual achievements against planned targets, status indicators, and context notes.
-*   **Personal Dashboard:** Track personal performance via visual timelines, progress bars, and status badges.
+| 1440 px baseline | 390 px baseline |
+| --- | --- |
+| ![Employee plan before the redesign at desktop width](docs/ui/before/employee-desktop.png) | ![Employee plan before the redesign at phone width](docs/ui/before/employee-phone.png) |
 
-### For Managers
-*   **Team Oversight:** View, inline-edit, and manage all goals submitted by direct reports.
-*   **Approval Workflows:** Approve goals to lock them in for the quarter, or return them to employees for rework with actionable feedback.
-*   **Performance Reviews:** Review quarterly check-ins and add managerial comments to employee progress updates.
-*   **Team Analytics:** Access team-wide performance reports and completion tracking dashboards.
+## Stack
 
-### For Administrators
-*   **Organization Management:** Oversee the entire organizational hierarchy, user roles, and reporting lines.
-*   **Cycle Configuration:** Define and manage quarterly performance cycles.
-*   **Goal Unlocking:** Manage exceptions with secure goal unlock workflows that require justification and are fully audited.
-*   **Global Analytics:** Access comprehensive reports, goal distribution charts, and export data in CSV or Excel formats.
-*   **Security & Auditing:** View immutable audit logs for all administrative actions and critical data mutations.
+- Client: React 18, Vite 5, Tailwind CSS 3.4 and Recharts.
+- Server: Node.js, Express and Prisma.
+- Database: PostgreSQL.
+- Sign-in: JWT in an HTTP-only cookie with role checks on protected API routes.
 
-## Technology Stack
+## Run locally
 
-*   **Frontend:** React, Vite, TailwindCSS, Recharts
-*   **Backend:** Node.js, Express
-*   **Database:** PostgreSQL, Prisma ORM
-*   **Authentication:** JWT (JSON Web Tokens) via secure, HTTP-only cookies
-*   **Deployment ready:** Docker, Docker Compose, Vercel & Render configurations included
+Use Node.js 18.19 or newer and PostgreSQL 14 or newer. Copy `server/.env.example` to `server/.env`, then set `DATABASE_URL` and a development `JWT_SECRET`. Copy `client/.env.example` to `client/.env` and set `VITE_API_BASE_URL=http://localhost:4000/api`.
 
-## Enterprise Security Features
-
-The platform is fortified with robust, production-ready security measures suitable for internal corporate networks and external deployments:
-
-*   **HTTP Header Security:** `Helmet` is utilized to secure Express apps by setting various HTTP headers (e.g., Content Security Policy, X-XSS-Protection, Strict-Transport-Security).
-*   **Authentication & Session Management:** JWTs are stored in `httpOnly`, `Secure` (in production), and `SameSite` cookies to prevent XSS and CSRF attacks.
-*   **Role-Based Access Control (RBAC):** Strict middleware enforcement of `EMPLOYEE`, `MANAGER`, and `ADMIN` roles across all API endpoints.
-*   **Rate Limiting & Brute-Force Protection:** Global rate limiting protects APIs against DDoS attacks, with strict endpoint-specific limits (e.g., on `/login`) to prevent credential stuffing and brute-force attacks.
-*   **Input Validation:** Strict payload parsing and sanitization using `zod` to prevent injection attacks and guarantee data integrity.
-*   **HTTP Parameter Pollution Protection:** `hpp` middleware defends against parameter pollution vulnerabilities.
-*   **Cross-Origin Resource Sharing (CORS):** Strictly configured CORS policies ensuring the API only accepts requests from trusted origins.
-*   **Comprehensive Audit Logging:** All sensitive state changes and administrative actions are logged immutably, including the actor's identity, timestamp, and the exact state changes (before/after).
-
-## Current Status
-
-Production-ready enterprise full-stack application with completed authentication, goal planning, manager review, quarterly check-in workflows, admin portal, auditing, and analytics reporting.
-
-## Getting Started
-
-### Prerequisites
-
-* Node.js (v18.19.0+)
-* PostgreSQL (v14+) or Neon PostgreSQL instance
-* Docker & Docker Compose (optional, for containerized deployment)
-
-### Local Setup
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Environment Configuration:**
-   ```bash
-   cp server/.env.example server/.env
-   cp client/.env.example client/.env
-   ```
-   Update `server/.env` with your PostgreSQL connection string and a secure `JWT_SECRET`.
-
-3. **Database Initialization:**
-   ```bash
-   npm run prisma:generate
-   npm run prisma:migrate
-   npm run seed
-   ```
-
-4. **Start Development Servers:**
-   ```bash
-   npm run dev
-   ```
-
-* **Frontend:** `http://localhost:5173`
-* **Backend API:** `http://localhost:4000`
-
-### Important Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start both client and server in watch/development mode |
-| `npm run dev:client` | Start client only via Vite |
-| `npm run dev:server` | Start server only via Nodemon |
-| `npm run build` | Build client bundle via Vite and syntax check server |
-| `npm run lint` | Run ESLint checks across both client and server workspaces |
-| `npm run prisma:generate` | Generate Prisma client bindings |
-| `npm run prisma:migrate` | Run database migrations |
-| `npm run seed` | Seed database with initial roles, users, and cycle data |
-
-### Testing & Verification
-
-Run the lint suite and production build to verify codebase health:
 ```bash
-npm run lint
-npm run build
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run seed:demo
+npm run dev
 ```
 
-### Demo Credentials
+The client runs at `http://localhost:5173` and the API at `http://localhost:4000`. `npm run seed:demo` uses the existing schema and refuses to run when `NODE_ENV=production`. It upserts a repeatable local fixture with 28 users, 92 goals, quarterly progress and audit history. It is intended for a development database: re-running it restores its owned demo records and marks the current quarter active.
 
-* **Employee:** `employee@atomberg.local` / `Password123!`
-* **Manager:** `manager@atomberg.local` / `Password123!`
-* **Admin:** `admin@atomberg.local` / `Password123!`
+The three primary demo accounts share the development password `Password123!`:
 
-## Architecture & Documentation
+| Role | Email |
+| --- | --- |
+| Employee | `employee@atomberg.local` |
+| Manager | `manager@atomberg.local` |
+| HR administrator | `admin@atomberg.local` |
 
-For detailed information regarding the system's architecture, APIs, and deployment strategies, please refer to the following documents:
+Use `npm run seed` for the original minimal three-user seed. Run `npm run lint` and `npm run build` before committing.
 
-* [Architecture Overview](ARCHITECTURE.md)
-* [API Documentation](API.md)
-* [Environment Variables](ENVIRONMENT.md)
-* [Deployment Guide](DEPLOYMENT.md)
-* [Agent Development Context](AGENTS.md)
+## Documentation
 
+- [Architecture](ARCHITECTURE.md)
+- [API routes and filters](API.md)
+- [Environment variables](ENVIRONMENT.md)
+- [Deployment](DEPLOYMENT.md)
+- [Agent guidelines](AGENTS.md)

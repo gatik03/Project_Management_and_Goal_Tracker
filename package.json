@@ -14,7 +14,8 @@
     "lint": "npm run lint --workspaces",
     "prisma:generate": "npm run prisma:generate --workspace server",
     "prisma:migrate": "npm run prisma:migrate --workspace server",
-    "seed": "npm run seed --workspace server"
+    "seed": "npm run seed --workspace server",
+    "seed:demo": "npm run seed:demo --workspace server"
   },
   "engines": {
     "node": ">=18.19.0"
