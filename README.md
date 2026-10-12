@@ -6,17 +6,27 @@ The interface gives each role a focused workspace. Plans show the exact weight a
 
 Managers can transfer weight between submitted or returned goals in 5% steps and save the complete 100% plan in one action. Employees and managers have a Notifications tab with unread counts and links to the relevant plan or check-in. It refreshes on focus and roughly every 30 seconds; notification read state persists across devices.
 
-| Plan at desktop width | Plan at phone width |
-| --- | --- |
-| ![Goal tracker employee plan on desktop](docs/ui/after/plan-light-1536.png) | ![Goal tracker employee plan on phone](docs/ui/after/plan-light-390.png) |
+## Screenshots
 
-| Team review | Reports in dark mode |
-| --- | --- |
-| ![Goal tracker manager review](docs/ui/after/team-light-1536.png) | ![Goal tracker reports on phone in dark mode](docs/ui/after/admin-reports-dark-390.png) |
+Employee plan on desktop:
 
-| Manager weight editing | Employee notifications |
-| --- | --- |
-| ![Manager editing a complete weighted plan](docs/ui/after/team-weights-draft-light-1280.png) | ![Employee notification tab on a phone](docs/ui/after/employee-notifications-dark-390.png) |
+![Goal tracker employee plan on desktop](docs/ui/after/plan-light-1536.png)
+
+Employee plan on phone:
+
+![Goal tracker employee plan on phone](docs/ui/after/plan-light-390.png)
+
+Manager review and weight editing:
+
+![Goal tracker manager review](docs/ui/after/team-weights-draft-light-1280.png)
+
+Reports in dark mode:
+
+![Goal tracker reports on phone in dark mode](docs/ui/after/admin-reports-dark-390.png)
+
+Employee notifications:
+
+![Employee notification tab on a phone](docs/ui/after/employee-notifications-dark-390.png)
 
 The [design brief](docs/design-brief.md) explains the Plan Bar, visual tokens, interaction rules, and layout decisions. [Before screenshots](docs/ui/before/) and [after screenshots](docs/ui/after/) show every main route at four widths in both themes. [UI critique](docs/ui/critique.md) records the changes made after screenshot and accessibility review.
 
@@ -52,27 +62,6 @@ The three primary demo accounts share the development password `Password123!`:
 | HR administrator | `admin@atomberg.local` |
 
 Use `npm run seed` for the original minimal three-user seed. Run `npm run lint` and `npm run build` before committing.
-
-## Frontend checks
-
-With the client and API running, `node client/scripts/verify-ui.mjs` captures responsive light/dark screenshots and runs axe on every main route. Use `UI_BASE_URL` to point it at another local origin and `CHROME_PATH` if Brave is not installed at `/usr/bin/brave-browser`. It uses six demo sign-ins, so run it against a fresh local API process if its login limiter has already seen other tests. `npm run test:contrast --workspace client` checks text and control contrast for both themes; `npm run test:ui --workspace client` checks Plan Bar transfer rules.
-
-`UI_E2E_MUTATE_DEMO=true node client/scripts/flow-check.mjs` exercises create, rebalance, submit, send-back, resubmit, approve, admin unlock, report filtering and CSV export. Run it only against a disposable seeded demo database; it changes goals and writes immutable audit records.
-
-`UI_E2E_MUTATE_DEMO=true node client/scripts/notification-flow.mjs` checks manager weight transfers, employee and manager notifications, persistent read state, a quarterly check-in update and phone accessibility. Run it against a disposable seeded demo database as well.
-
-The production build starts with about **89.2 kB gzipped JavaScript**; notification screens and reports charts load only on their routes. The previous Lighthouse mobile baseline was **97 performance / 100 accessibility on `/login`** and **95 performance / 100 accessibility on `/plan`**. The `/plan` audit used a demo session cookie passed through Lighthouse's local extra-headers file.
-
-## Backend checks
-
-The integration suite requires a separate PostgreSQL database whose name ends in `_test`; it refuses any other database. With Docker, start the test service, then run the tests:
-
-```bash
-docker compose --profile test up -d postgres_test
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/goal_tracker_test?schema=public npm test
-```
-
-Tests apply pending migrations and truncate the dedicated database before each case. `npm run prisma:migrate` creates development migrations; `npm run prisma:deploy` applies committed migrations in deployment. Existing `init` migrations have been left intact. Audit rows reject UPDATE and DELETE through a PostgreSQL trigger; a database administrator can still truncate during recovery or test resets. API writes require an allowed Origin, and cookie-authenticated writes also send `X-Requested-With: XMLHttpRequest`.
 
 ## Documentation
 
