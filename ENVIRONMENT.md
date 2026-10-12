@@ -5,13 +5,13 @@
 `client/.env`
 
 ```env
-VITE_API_BASE_URL=http://localhost:4000/api
+VITE_API_BASE_URL=/api
 ```
 
 For Vercel, set:
 
 ```env
-VITE_API_BASE_URL=https://your-api-domain.onrender.com/api
+VITE_API_BASE_URL=/api
 ```
 
 ## Backend
@@ -30,13 +30,14 @@ CLIENT_ORIGINS="http://localhost:5173"
 NODE_ENV="development"
 ```
 
-For hosted frontend/backend on different domains, use:
+For the Vercel frontend and Render API, use the first-party `/api` rewrite in `client/vercel.json` and set:
 
 ```env
 NODE_ENV=production
-JWT_COOKIE_SAME_SITE=none
+JWT_COOKIE_SAME_SITE=lax
 CLIENT_ORIGIN=https://your-vercel-app.vercel.app
 CLIENT_ORIGINS=https://your-vercel-app.vercel.app
+TRUST_PROXY_HOPS=2
 ```
 
 Use a strong random `JWT_SECRET` in production.
@@ -56,4 +57,4 @@ Neon:
 1. Create a Neon project.
 2. Copy the pooled PostgreSQL connection string.
 3. Set it as `DATABASE_URL` on Render/Railway.
-4. Run migrations during deployment or from a trusted machine.
+4. Run `npm run prisma:deploy` during deployment or from a trusted machine.

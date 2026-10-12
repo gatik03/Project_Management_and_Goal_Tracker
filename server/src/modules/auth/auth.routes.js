@@ -27,6 +27,11 @@ router.post("/login", loginRateLimiter, async (request, response, next) => {
     const result = await login(credentials);
 
     if (!result) {
+      await request.audit({
+        action: "LOGIN_FAILED", entityType: "User", entityId: credentials.email,
+        actorEmail: credentials.email,
+        newValue: { reason: "invalid_credentials" }
+      });
       return response.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -56,8 +61,10 @@ router.get("/me", requireAuth, async (request, response, next) => {
   }
 });
 
-router.post("/logout", (_request, response) => {
-  response.clearCookie(env.JWT_COOKIE_NAME, getAuthCookieOptions());
+router.post("/logout", requireAuth, (_request, response) => {
+  const cookieOptions = getAuthCookieOptions();
+  delete cookieOptions.maxAge;
+  response.clearCookie(env.JWT_COOKIE_NAME, cookieOptions);
   return response.json({ message: "Logged out successfully" });
 });
 

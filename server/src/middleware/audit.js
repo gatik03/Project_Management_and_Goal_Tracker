@@ -9,13 +9,13 @@ function toAuditJson(value) {
 }
 
 export function attachAuditLogger(request, _response, next) {
-  request.audit = async ({ action, entityType, entityId, oldValue, newValue }) => {
+  request.audit = async ({ action, entityType, entityId, oldValue, newValue, actorEmail }, db = prisma) => {
     const actor = request.user;
 
-    await prisma.auditLog.create({
+    await db.auditLog.create({
       data: {
         actorId: actor?.id ?? null,
-        actorEmail: actor?.email ?? "system",
+        actorEmail: actorEmail ?? actor?.email ?? "system",
         action,
         entityType,
         entityId,

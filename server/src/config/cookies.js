@@ -8,7 +8,7 @@ export function getAuthCookieOptions() {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? "none" : env.JWT_COOKIE_SAME_SITE,
+    sameSite: env.JWT_COOKIE_SAME_SITE,
     maxAge: eightHoursMs,
     path: "/"
   };

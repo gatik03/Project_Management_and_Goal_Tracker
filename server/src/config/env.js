@@ -10,7 +10,8 @@ const envSchema = z.object({
   PORT: z.string().optional(),
   CLIENT_ORIGIN: z.string().url().optional(),
   CLIENT_ORIGINS: z.string().optional(),
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development")
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).optional()
 });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -18,6 +19,7 @@ const parsedEnv = envSchema.parse(process.env);
 export const env = {
   ...parsedEnv,
   PORT: Number(parsedEnv.PORT) || 4000,
+  TRUST_PROXY_HOPS: parsedEnv.TRUST_PROXY_HOPS ?? (parsedEnv.NODE_ENV === "production" ? 2 : 0)
 };
 
 const rawAllowedOrigins = [env.CLIENT_ORIGINS, env.CLIENT_ORIGIN]

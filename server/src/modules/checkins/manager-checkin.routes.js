@@ -20,7 +20,8 @@ router.get("/", async (request, response, next) => {
 router.post("/:checkInId/comment", async (request, response, next) => {
   try {
     const payload = managerCommentSchema.parse(request.body);
-    const checkIn = await addManagerCheckInComment(request.user.id, request.params.checkInId, payload.managerComment);
+    const checkInId = z.string().uuid().parse(request.params.checkInId);
+    const checkIn = await addManagerCheckInComment(request.user.id, checkInId, payload.managerComment, request.audit, request.user.name);
     return response.json({ checkIn });
   } catch (error) {
     if (error instanceof z.ZodError) {

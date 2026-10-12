@@ -11,12 +11,14 @@ import {
 import { formatZodError, goalPayloadSchema } from "./goal.validation.js";
 
 const router = Router();
+const idSchema = z.string().uuid();
+const pageSchema = z.object({ limit: z.coerce.number().int().min(1).max(100).optional(), cursor: idSchema.optional() });
 
 router.use(requireAuth, requireRole("EMPLOYEE"));
 
 router.get("/", async (request, response, next) => {
   try {
-    const goals = await listEmployeeGoals(request.user.id);
+    const goals = await listEmployeeGoals(request.user.id, pageSchema.parse(request.query));
     return response.json({ goals });
   } catch (error) {
     return next(error);
@@ -26,7 +28,7 @@ router.get("/", async (request, response, next) => {
 router.post("/", async (request, response, next) => {
   try {
     const payload = goalPayloadSchema.parse(request.body);
-    const goal = await createEmployeeGoal(request.user.id, payload);
+    const goal = await createEmployeeGoal(request.user.id, payload, request.audit);
     return response.status(201).json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -40,7 +42,7 @@ router.post("/", async (request, response, next) => {
 router.put("/:goalId", async (request, response, next) => {
   try {
     const payload = goalPayloadSchema.parse(request.body);
-    const goal = await updateEmployeeGoal(request.user.id, request.params.goalId, payload);
+    const goal = await updateEmployeeGoal(request.user.id, idSchema.parse(request.params.goalId), payload, request.audit);
     return response.json({ goal });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -53,7 +55,7 @@ router.put("/:goalId", async (request, response, next) => {
 
 router.delete("/:goalId", async (request, response, next) => {
   try {
-    await deleteEmployeeGoal(request.user.id, request.params.goalId);
+    await deleteEmployeeGoal(request.user.id, idSchema.parse(request.params.goalId), request.audit);
     return response.status(204).send();
   } catch (error) {
     return next(error);
@@ -62,7 +64,7 @@ router.delete("/:goalId", async (request, response, next) => {
 
 router.post("/submit", async (request, response, next) => {
   try {
-    const goals = await submitEmployeeGoals(request.user.id);
+    const goals = await submitEmployeeGoals(request.user.id, request.audit, request.user.name);
     return response.json({ goals });
   } catch (error) {
     return next(error);

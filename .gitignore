@@ -39,3 +39,4 @@ Thumbs.db
 # Misc cache files
 .eslintcache
 .vite/
+.playwright-cli/

@@ -11,5 +11,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY server ./server
 WORKDIR /app/server
 RUN npx prisma generate
+RUN chown -R node:node /app
+USER node
 EXPOSE 4000
-CMD ["node", "src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]

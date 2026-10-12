@@ -13,7 +13,7 @@ export async function requireAuth(request, response, next) {
     }
 
     const token = cookieToken ?? bearerToken;
-    const payload = jwt.verify(token, env.JWT_SECRET);
+    const payload = jwt.verify(token, env.JWT_SECRET, { algorithms: ["HS256"] });
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },

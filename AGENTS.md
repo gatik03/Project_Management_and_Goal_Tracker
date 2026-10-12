@@ -1,12 +1,12 @@
-# Developer & Agent Guidelines — Atomberg Goal & Performance Tracker
+# Developer & Agent Guidelines — Goal tracker
 
 ## Project Summary
-The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application implementing an enterprise goal-setting and quarterly review workflow for three user roles: Employees, Managers, and Administrators.
+**Goal tracker** is a full-stack monorepo application for employee goal planning, manager review and quarterly check-ins, and HR administration.
 
 ## Directory Structure & Important Files
 - `client/`: Frontend single-page application built with React 18, Vite, and Tailwind CSS.
-  - `src/pages/`: Role-specific views (`EmployeeGoalsPage.jsx`, `ManagerApprovalPage.jsx`, `AdminPortalPage.jsx`, `DashboardPage.jsx`, `LandingPage.jsx`, `LoginPage.jsx`).
-  - `src/components/`: Reusable UI modules (`ReportingDashboard.jsx`, `EmployeeQuarterlyPanel.jsx`, `ManagerQuarterlyPanel.jsx`, `AppShell.jsx`).
+  - `src/features/`: Routed plan, review, admin, reports and entry screens.
+  - `src/ui/`: Shared accessible controls, overlays, status glyphs and the Plan Bar.
   - `src/lib/api.js`: Centralized Axios HTTP client configuring credentials and API endpoints.
 - `server/`: Backend REST API built with Node.js, Express, and Prisma ORM.
   - `src/server.js`: Entry point initializing Express HTTP server.
@@ -14,7 +14,7 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
   - `src/modules/`: Domain modularization (`auth`, `goals`, `checkins`, `admin`, `reports`).
   - `src/middleware/`: Authentication and role-based access control (`auth.js`), validation, and audit logging.
   - `prisma/schema.prisma`: Database schemas and relations.
-  - `prisma/seed.js`: Initial database seeding script.
+  - `prisma/seed.js`: Initial seed; `prisma/seed-demo.js`: repeatable rich demo fixture.
 - `ARCHITECTURE.md`, `API.md`, `ENVIRONMENT.md`, `DEPLOYMENT.md`: Detailed system documentation.
 
 ## Running and Testing
@@ -23,7 +23,7 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
 - Build check: `npm run build`
 - Linter check: `npm run lint`
 - Database migration: `npm run prisma:migrate`
-- Database seed: `npm run seed`
+- Database seed: `npm run seed:demo` for the complete demo, or `npm run seed` for the minimal fixture
 
 ## Key Business Logic & State Transitions
 - **Goal Status Flow**: `DRAFT` -> `SUBMITTED` -> `APPROVED` (locked) or `REWORK_REQUIRED` -> `SUBMITTED`.
@@ -38,6 +38,8 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
   - Managers can only view/edit/approve goals belonging to their direct reports (`User.managerId`).
   - Admins can unlock locked goals but must provide an audit justification note.
   - Employees cannot modify goals once submitted unless sent back for rework.
+- Managers rebalance submitted or returned goal weights through one serializable batch update. Every changed goal is audited, and the full plan must still total 100%; approved and locked weights stay fixed.
+- Employee and manager notifications are recipient-scoped. Create them in the same transaction as the audited business action, and audit read-state mutations.
 
 ## Sensitive Files & Configuration
 - `server/.env` contains sensitive database connection strings and JWT signing secrets. **Never commit `.env` files.** Always configure from `server/.env.example`.
@@ -48,3 +50,11 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
 2. **Do Not Bypass Zod Schemas**: All incoming API requests must be validated through existing Zod schemas.
 3. **Database Migrations**: Whenever changing `prisma/schema.prisma`, generate Prisma client and migration scripts (`npm run prisma:generate`, `npm run prisma:migrate`).
 4. **Cookie Security**: Auth cookies require `httpOnly: true`, `sameSite: 'lax'`, and `secure: true` in production.
+
+## UI rules
+
+- Use the semantic colour, type, spacing, radius and motion tokens defined in `docs/design-brief.md`. Keep light and dark values together in CSS variables and wire them into Tailwind. Feature code must not use raw hex colours or one-off pixel values.
+- Build actions with the shared `Button` and `IconButton` variants in `client/src/ui`. Do not create one-off button styles or copy utility-class strings across features.
+- Every goal state must use `StatusGlyph` with both a glyph and a readable label. Never use colour alone to identify a state.
+- Motion budget: one short Plan Bar entrance on first load, about 500 ms. Other motion may only answer an action, should normally finish within 220 ms, and must respect reduced-motion preferences.
+- Avoid gradient washes or text, glassmorphism, purple-to-blue gradients, a centred hero with three feature cards, identical shadow cards, icons in tinted squares, KPI-card rows, uppercase tracked eyebrows, middle-dot metadata, “WORD - fragment” labels, tiny monospace labels, arrows appended to links, a single accented headline word, decorative sequence numbers, cream/serif/terracotta styling, black/acid-accent styling, broadsheet hairline decoration, emoji, “Welcome back” and stock illustrations.
