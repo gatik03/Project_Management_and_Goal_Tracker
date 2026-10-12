@@ -2,11 +2,17 @@
 
 Goal tracker is a full-stack workspace for weighted employee goals, manager reviews, quarterly check-ins and HR administration. An employee can submit a plan when its goal weights total exactly 100%. Managers review direct reports; HR administrators manage people, cycles, goal unlocks and the audit trail.
 
-These screenshots show the current interface before the redesign. See the [design brief](docs/design-brief.md) for the planned UI direction and the complete [before screenshots](docs/ui/before/).
+The interface gives each role a focused workspace. Plans show the exact weight and review state; managers work through direct reports; administrators use separate routes for people, hierarchy, cycles, unlocks, and audit history. The public example Plan Bar can be rebalanced without saving.
 
-| 1440 px baseline | 390 px baseline |
+| Plan at desktop width | Plan at phone width |
 | --- | --- |
-| ![Employee plan before the redesign at desktop width](docs/ui/before/employee-desktop.png) | ![Employee plan before the redesign at phone width](docs/ui/before/employee-phone.png) |
+| ![Goal tracker employee plan on desktop](docs/ui/after/plan-light-1536.png) | ![Goal tracker employee plan on phone](docs/ui/after/plan-light-390.png) |
+
+| Team review | Reports in dark mode |
+| --- | --- |
+| ![Goal tracker manager review](docs/ui/after/team-light-1536.png) | ![Goal tracker reports on phone in dark mode](docs/ui/after/admin-reports-dark-390.png) |
+
+The [design brief](docs/design-brief.md) explains the Plan Bar, visual tokens, interaction rules, and layout decisions. [Before screenshots](docs/ui/before/) and [after screenshots](docs/ui/after/) show every main route at four widths in both themes. [UI critique](docs/ui/critique.md) records the changes made after screenshot and accessibility review.
 
 ## Stack
 
@@ -27,7 +33,9 @@ npm run seed:demo
 npm run dev
 ```
 
-The client runs at `http://localhost:5173` and the API at `http://localhost:4000`. Run `npm run prisma:deploy` again after pulling server changes so an existing local database has the latest committed migrations. `npm run seed:demo` uses the existing schema and refuses to run when `NODE_ENV=production`. It upserts a repeatable local fixture with 28 users, 92 goals, quarterly progress and audit history. It is intended for a development database: re-running it restores its owned demo records and marks the current quarter active.
+The client runs at `http://localhost:5173` and the API at `http://localhost:4000`. Open `/` for the interactive example or `/login` to sign in. Set `VITE_DEMO_MODE=true` in `client/.env` and restart Vite to make the public role chooser sign in as the seeded demo accounts; leave it false for a regular sign-in link. The interface remembers a manual light/dark choice and otherwise follows the system preference.
+
+Run `npm run prisma:deploy` again after pulling server changes so an existing local database has the latest committed migrations. `npm run seed:demo` uses the existing schema and refuses to run when `NODE_ENV=production`. It upserts a repeatable local fixture with 28 users, 92 goals, quarterly progress and audit history. It is intended for a development database: re-running it restores its owned demo records and marks the current quarter active.
 
 The three primary demo accounts share the development password `Password123!`:
 
@@ -38,6 +46,14 @@ The three primary demo accounts share the development password `Password123!`:
 | HR administrator | `admin@atomberg.local` |
 
 Use `npm run seed` for the original minimal three-user seed. Run `npm run lint` and `npm run build` before committing.
+
+## Frontend checks
+
+With the client and API running, `node client/scripts/verify-ui.mjs` captures responsive light/dark screenshots and runs axe on every main route. Use `UI_BASE_URL` to point it at another local origin and `CHROME_PATH` if Brave is not installed at `/usr/bin/brave-browser`. It uses six demo sign-ins, so run it against a fresh local API process if its login limiter has already seen other tests. `npm run test:contrast --workspace client` checks text and control contrast for both themes; `npm run test:ui --workspace client` checks Plan Bar transfer rules.
+
+`UI_E2E_MUTATE_DEMO=true node client/scripts/flow-check.mjs` exercises create, rebalance, submit, send-back, resubmit, approve, admin unlock, report filtering and CSV export. Run it only against a disposable seeded demo database; it changes goals and writes immutable audit records.
+
+The production build starts with **88.4 kB gzipped JavaScript**; the reports chart code loads only on `/reports`. Lighthouse mobile scores from the production preview are **97 performance / 100 accessibility on `/login`** and **95 performance / 100 accessibility on `/plan`**. The `/plan` audit used a demo session cookie passed through Lighthouse's local extra-headers file.
 
 ## Backend checks
 

@@ -42,7 +42,7 @@ All colours are CSS custom properties on `:root` and `[data-theme="dark"]`, expo
 | Ink | `#111816` | `#F1F5F1` | Primary text |
 | Muted ink | `#55605C` | `#C0CEC8` | Secondary text |
 | Signal | `#0C6B5E` | `#72CDB9` | Main action, approved plan, focus |
-| OK | `#1F7A4D` | `#82D8A7` | Completed status and explanatory text |
+| OK | `#176B43` | `#82D8A7` | Completed status and explanatory text; darkened for text on sunken surfaces |
 | Warning | `#A8610A` | `#F0BA6E` | Warning icon and surface text |
 | Warning ink | `#935309` | `#F0BA6E` | Small warning text on paper |
 | Danger | `#B4332E` | `#F39B95` | Error and destructive action |

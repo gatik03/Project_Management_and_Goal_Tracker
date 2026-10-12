@@ -1,12 +1,12 @@
-# Developer & Agent Guidelines — Atomberg Goal & Performance Tracker
+# Developer & Agent Guidelines — Goal tracker
 
 ## Project Summary
-The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application implementing an enterprise goal-setting and quarterly review workflow for three user roles: Employees, Managers, and Administrators.
+**Goal tracker** is a full-stack monorepo application for employee goal planning, manager review and quarterly check-ins, and HR administration.
 
 ## Directory Structure & Important Files
 - `client/`: Frontend single-page application built with React 18, Vite, and Tailwind CSS.
-  - `src/pages/`: Role-specific views (`EmployeeGoalsPage.jsx`, `ManagerApprovalPage.jsx`, `AdminPortalPage.jsx`, `DashboardPage.jsx`, `LandingPage.jsx`, `LoginPage.jsx`).
-  - `src/components/`: Reusable UI modules (`ReportingDashboard.jsx`, `EmployeeQuarterlyPanel.jsx`, `ManagerQuarterlyPanel.jsx`, `AppShell.jsx`).
+  - `src/features/`: Routed plan, review, admin, reports and entry screens.
+  - `src/ui/`: Shared accessible controls, overlays, status glyphs and the Plan Bar.
   - `src/lib/api.js`: Centralized Axios HTTP client configuring credentials and API endpoints.
 - `server/`: Backend REST API built with Node.js, Express, and Prisma ORM.
   - `src/server.js`: Entry point initializing Express HTTP server.
@@ -14,7 +14,7 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
   - `src/modules/`: Domain modularization (`auth`, `goals`, `checkins`, `admin`, `reports`).
   - `src/middleware/`: Authentication and role-based access control (`auth.js`), validation, and audit logging.
   - `prisma/schema.prisma`: Database schemas and relations.
-  - `prisma/seed.js`: Initial database seeding script.
+  - `prisma/seed.js`: Initial seed; `prisma/seed-demo.js`: repeatable rich demo fixture.
 - `ARCHITECTURE.md`, `API.md`, `ENVIRONMENT.md`, `DEPLOYMENT.md`: Detailed system documentation.
 
 ## Running and Testing
@@ -23,7 +23,7 @@ The **Atomberg Goal & Performance Tracker** is a full-stack monorepo application
 - Build check: `npm run build`
 - Linter check: `npm run lint`
 - Database migration: `npm run prisma:migrate`
-- Database seed: `npm run seed`
+- Database seed: `npm run seed:demo` for the complete demo, or `npm run seed` for the minimal fixture
 
 ## Key Business Logic & State Transitions
 - **Goal Status Flow**: `DRAFT` -> `SUBMITTED` -> `APPROVED` (locked) or `REWORK_REQUIRED` -> `SUBMITTED`.
