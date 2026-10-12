@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
 import { useConfirmation } from "../components/ConfirmationProvider";
 import { ProgressBar } from "../components/ProgressBar";
-import { ReportingDashboard } from "../components/ReportingDashboard";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
 import { apiClient } from "../lib/api";
@@ -165,7 +164,6 @@ export function AdminPortalPage() {
         </div>
       </section>
 
-      <ReportingDashboard scopeLabel="Organization analytics" />
 
       <section className="rounded-lg border border-corporate-line bg-white shadow-soft">
         <div className="flex flex-col gap-3 border-b border-corporate-line p-5 md:flex-row md:items-center md:justify-between">

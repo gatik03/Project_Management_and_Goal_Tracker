@@ -1,8 +1,6 @@
 import { CheckCircle2, RefreshCw, Save, UsersRound, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
-import { ManagerQuarterlyPanel } from "../components/ManagerQuarterlyPanel";
-import { ReportingDashboard } from "../components/ReportingDashboard";
 import { useConfirmation } from "../components/ConfirmationProvider";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
@@ -300,9 +298,6 @@ export function ManagerApprovalPage({ user }) {
         )}
       </section>
 
-      <ManagerQuarterlyPanel />
-
-      <ReportingDashboard scopeLabel="Team analytics" />
     </div>
   );
 }

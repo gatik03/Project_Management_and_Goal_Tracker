@@ -1,7 +1,6 @@
 import { CalendarDays, Edit3, Plus, Save, Target, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { MetricCard } from "../components/MetricCard";
-import { EmployeeQuarterlyPanel } from "../components/EmployeeQuarterlyPanel";
 import { useConfirmation } from "../components/ConfirmationProvider";
 import { StatusBadge } from "../components/StatusBadge";
 import { useToast } from "../components/ToastProvider";
@@ -396,7 +395,6 @@ export function EmployeeGoalsPage({ user }) {
         )}
       </section>
 
-      <EmployeeQuarterlyPanel />
 
       {isModalOpen ? <GoalModal goal={activeGoal} onClose={() => setIsModalOpen(false)} onSave={saveGoal} /> : null}
     </div>

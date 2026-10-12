@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { AppShell } from "./components/AppShell";
+import { AppShell, navigationByRole } from "./components/AppShell";
 import { ConfirmationProvider } from "./components/ConfirmationProvider";
+import { EmployeeQuarterlyPanel } from "./components/EmployeeQuarterlyPanel";
+import { ManagerQuarterlyPanel } from "./components/ManagerQuarterlyPanel";
+import { ReportingDashboard } from "./components/ReportingDashboard";
 import { ToastProvider } from "./components/ToastProvider";
 import { apiClient } from "./lib/api";
 import { AdminPortalPage } from "./pages/AdminPortalPage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeeGoalsPage } from "./pages/EmployeeGoalsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ManagerApprovalPage } from "./pages/ManagerApprovalPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [selectedView, setSelectedView] = useState(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
+
+  const navigation = navigationByRole[user?.role] ?? [];
+  const activeView = navigation.some((item) => item.id === selectedView) ? selectedView : navigation[0]?.id;
 
   const portalLabel = useMemo(() => {
     if (user?.role === "ADMIN") return "Admin Portal";
@@ -41,6 +47,17 @@ export default function App() {
   async function handleLogout() {
     await apiClient.post("/auth/logout");
     setUser(null);
+    setSelectedView(null);
+  }
+
+  function handleAuthenticated(nextUser) {
+    setSelectedView(null);
+    setUser(nextUser);
+  }
+
+  function handleNavigate(view) {
+    setSelectedView(view);
+    window.scrollTo(0, 0);
   }
 
   let content;
@@ -52,18 +69,24 @@ export default function App() {
       </div>
     );
   } else if (!user) {
-    content = <LoginPage onAuthenticated={setUser} />;
+    content = <LoginPage onAuthenticated={handleAuthenticated} />;
   } else {
     content = (
-      <AppShell portalLabel={portalLabel} user={user} onLogout={handleLogout}>
-      {user.role === "EMPLOYEE" ? (
+      <AppShell activeView={activeView} onNavigate={handleNavigate} portalLabel={portalLabel} user={user} onLogout={handleLogout}>
+      {activeView === "plan" ? (
         <EmployeeGoalsPage user={user} />
-      ) : user.role === "MANAGER" ? (
+      ) : activeView === "check-ins" ? (
+        <EmployeeQuarterlyPanel />
+      ) : activeView === "team" ? (
         <ManagerApprovalPage user={user} />
-      ) : user.role === "ADMIN" ? (
+      ) : activeView === "team-check-ins" ? (
+        <ManagerQuarterlyPanel />
+      ) : activeView === "administration" ? (
         <AdminPortalPage />
+      ) : activeView === "reports" ? (
+        <ReportingDashboard scopeLabel={user.role === "ADMIN" ? "Organization analytics" : "Team analytics"} />
       ) : (
-        <DashboardPage portalLabel={portalLabel} user={user} />
+        null
       )}
       </AppShell>
     );
