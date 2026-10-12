@@ -25,7 +25,7 @@ export function errorHandler(error, request, response, _next) {
       name: error.name, code: error.code,
       ...(env.NODE_ENV === "production" ? {} : { message: error.message })
     }));
-    message = env.NODE_ENV === "production" ? "Internal server error" : (message ?? "Internal server error");
+    message = "The server could not complete the request. Please try again.";
   }
   response.status(status).json({ message: message ?? "Request failed" });
 }

@@ -1,5 +1,6 @@
 import { CalendarDays, Edit3, Plus, Save, Target, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MetricCard } from "../components/MetricCard";
 import { useConfirmation } from "../components/ConfirmationProvider";
 import { StatusBadge } from "../components/StatusBadge";
@@ -34,7 +35,42 @@ function GoalModal({ goal, onClose, onSave }) {
   const [form, setForm] = useState(goal ?? emptyForm);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const dialogRef = useRef(null);
   const todayDateValue = getTodayDateValue();
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.querySelector("input")?.focus();
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+      if (event.key !== "Tab") return;
+
+      const controls = Array.from(dialogRef.current?.querySelectorAll("input, select, textarea, button") ?? [])
+        .filter((element) => !element.disabled);
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [onClose]);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -67,12 +103,12 @@ function GoalModal({ goal, onClose, onSave }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/35 px-4 py-6">
-      <form className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-soft" onSubmit={handleSubmit}>
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 px-4 py-6">
+      <form aria-labelledby="goal-dialog-title" aria-modal="true" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-soft" onSubmit={handleSubmit} ref={dialogRef} role="dialog">
         <div className="border-b border-corporate-line px-6 py-5">
           <p className="text-sm font-semibold text-corporate-blue">{goal ? "Edit draft goal" : "Create draft goal"}</p>
-          <h2 className="mt-1 text-xl font-semibold text-corporate-navy">Goal details</h2>
+          <h2 className="mt-1 text-xl font-semibold text-corporate-navy" id="goal-dialog-title">Goal details</h2>
         </div>
 
         <div className="grid gap-5 px-6 py-5 md:grid-cols-2">
@@ -168,7 +204,7 @@ function GoalModal({ goal, onClose, onSave }) {
         </div>
       </form>
     </div>
-  );
+  , document.body);
 }
 
 export function EmployeeGoalsPage({ user }) {

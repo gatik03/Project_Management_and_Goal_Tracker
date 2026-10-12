@@ -22,12 +22,12 @@ Use Node.js 18.19 or newer and PostgreSQL 14 or newer. Copy `server/.env.example
 ```bash
 npm install
 npm run prisma:generate
-npm run prisma:migrate
+npm run prisma:deploy
 npm run seed:demo
 npm run dev
 ```
 
-The client runs at `http://localhost:5173` and the API at `http://localhost:4000`. `npm run seed:demo` uses the existing schema and refuses to run when `NODE_ENV=production`. It upserts a repeatable local fixture with 28 users, 92 goals, quarterly progress and audit history. It is intended for a development database: re-running it restores its owned demo records and marks the current quarter active.
+The client runs at `http://localhost:5173` and the API at `http://localhost:4000`. Run `npm run prisma:deploy` again after pulling server changes so an existing local database has the latest committed migrations. `npm run seed:demo` uses the existing schema and refuses to run when `NODE_ENV=production`. It upserts a repeatable local fixture with 28 users, 92 goals, quarterly progress and audit history. It is intended for a development database: re-running it restores its owned demo records and marks the current quarter active.
 
 The three primary demo accounts share the development password `Password123!`:
 
