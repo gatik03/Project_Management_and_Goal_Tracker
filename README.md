@@ -4,6 +4,8 @@ Goal tracker is a full-stack workspace for weighted employee goals, manager revi
 
 The interface gives each role a focused workspace. Plans show the exact weight and review state; managers work through direct reports; administrators use separate routes for people, hierarchy, cycles, unlocks, and audit history. The public example Plan Bar can be rebalanced without saving.
 
+Managers can transfer weight between submitted or returned goals in 5% steps and save the complete 100% plan in one action. Employees and managers have a Notifications tab with unread counts and links to the relevant plan or check-in. It refreshes on focus and roughly every 30 seconds; notification read state persists across devices.
+
 | Plan at desktop width | Plan at phone width |
 | --- | --- |
 | ![Goal tracker employee plan on desktop](docs/ui/after/plan-light-1536.png) | ![Goal tracker employee plan on phone](docs/ui/after/plan-light-390.png) |
@@ -11,6 +13,10 @@ The interface gives each role a focused workspace. Plans show the exact weight a
 | Team review | Reports in dark mode |
 | --- | --- |
 | ![Goal tracker manager review](docs/ui/after/team-light-1536.png) | ![Goal tracker reports on phone in dark mode](docs/ui/after/admin-reports-dark-390.png) |
+
+| Manager weight editing | Employee notifications |
+| --- | --- |
+| ![Manager editing a complete weighted plan](docs/ui/after/team-weights-draft-light-1280.png) | ![Employee notification tab on a phone](docs/ui/after/employee-notifications-dark-390.png) |
 
 The [design brief](docs/design-brief.md) explains the Plan Bar, visual tokens, interaction rules, and layout decisions. [Before screenshots](docs/ui/before/) and [after screenshots](docs/ui/after/) show every main route at four widths in both themes. [UI critique](docs/ui/critique.md) records the changes made after screenshot and accessibility review.
 
@@ -53,7 +59,9 @@ With the client and API running, `node client/scripts/verify-ui.mjs` captures re
 
 `UI_E2E_MUTATE_DEMO=true node client/scripts/flow-check.mjs` exercises create, rebalance, submit, send-back, resubmit, approve, admin unlock, report filtering and CSV export. Run it only against a disposable seeded demo database; it changes goals and writes immutable audit records.
 
-The production build starts with **88.4 kB gzipped JavaScript**; the reports chart code loads only on `/reports`. Lighthouse mobile scores from the production preview are **97 performance / 100 accessibility on `/login`** and **95 performance / 100 accessibility on `/plan`**. The `/plan` audit used a demo session cookie passed through Lighthouse's local extra-headers file.
+`UI_E2E_MUTATE_DEMO=true node client/scripts/notification-flow.mjs` checks manager weight transfers, employee and manager notifications, persistent read state, a quarterly check-in update and phone accessibility. Run it against a disposable seeded demo database as well.
+
+The production build starts with about **89.2 kB gzipped JavaScript**; notification screens and reports charts load only on their routes. The previous Lighthouse mobile baseline was **97 performance / 100 accessibility on `/login`** and **95 performance / 100 accessibility on `/plan`**. The `/plan` audit used a demo session cookie passed through Lighthouse's local extra-headers file.
 
 ## Backend checks
 

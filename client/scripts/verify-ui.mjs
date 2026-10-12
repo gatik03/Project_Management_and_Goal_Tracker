@@ -6,8 +6,8 @@ const base = process.env.UI_BASE_URL ?? "http://localhost:5173";
 const widths = [390, 768, 1280, 1536];
 const routes = {
   public: ["/", "/login"],
-  employee: ["/plan", "/check-ins"],
-  manager: ["/team", "/team/check-ins", "/reports"],
+  employee: ["/plan", "/check-ins", "/notifications"],
+  manager: ["/team", "/team/check-ins", "/notifications", "/reports"],
   admin: [
     "/admin/people",
     "/admin/hierarchy",
@@ -58,8 +58,8 @@ try {
         const slug =
           path === "/"
             ? "entry"
-            : path === "/reports"
-              ? `${role}-reports`
+            : path === "/reports" || path === "/notifications"
+              ? `${role}-${path.slice(1)}`
               : path.slice(1).replaceAll("/", "-");
         const issues = await new AxeBuilder({ page })
           .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])

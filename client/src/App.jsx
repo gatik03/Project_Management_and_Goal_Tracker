@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import {
   ChartNoAxesCombined,
+  Bell,
   ClipboardList,
   History,
   LayoutList,
@@ -38,6 +39,7 @@ import {
 } from "react-router-dom";
 import { api, setUnauthorizedHandler } from "./lib/api";
 import { BRAND } from "./lib/brand";
+import { useNotifications } from "./lib/notifications";
 import { Button, IconButton, Skeleton, ToastProvider } from "./ui";
 
 const loadPlanPage = () => import("./features/plan/PlanPage");
@@ -54,6 +56,7 @@ const AdminPage = lazy(() => import("./features/admin/AdminPage"));
 const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
 const EntryPage = lazy(() => import("./features/entry/EntryPage"));
 const LoginPage = lazy(() => import("./features/entry/LoginPage"));
+const NotificationsPage = lazy(() => import("./features/notifications/NotificationsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,10 +76,12 @@ const navigation = {
   EMPLOYEE: [
     { to: "/plan", label: "Plan", icon: ClipboardList },
     { to: "/check-ins", label: "Check-ins", icon: LayoutList },
+    { to: "/notifications", label: "Notifications", icon: Bell },
   ],
   MANAGER: [
     { to: "/team", label: "Team", icon: UsersRound },
     { to: "/team/check-ins", label: "Check-ins", icon: LayoutList },
+    { to: "/notifications", label: "Notifications", icon: Bell },
     { to: "/reports", label: "Reports", icon: ChartNoAxesCombined },
   ],
   ADMIN: [
@@ -220,7 +225,7 @@ function CycleIndicator() {
     </span>
   );
 }
-function NavItem({ item }) {
+function NavItem({ item, unreadCount = 0 }) {
   const Icon = item.icon;
   return (
     <NavLink
@@ -230,12 +235,19 @@ function NavItem({ item }) {
     >
       <Icon size={18} aria-hidden="true" />
       <span>{item.label}</span>
+      {item.to === "/notifications" && unreadCount > 0 && (
+        <span className="nav-count" aria-label={`${unreadCount} unread notifications`}>
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </NavLink>
   );
 }
 function SiteShell({ user, children }) {
   const { logout } = useSession();
   const items = navigation[user.role] ?? [];
+  const noticeData = useNotifications(user.role !== "ADMIN").data;
+  const unreadCount = noticeData?.pages?.[0]?.unreadCount ?? 0;
   return (
     <div className="site-shell">
       <a href="#main-content" className="skip-link">
@@ -248,7 +260,7 @@ function SiteShell({ user, children }) {
         </Link>
         <nav className="top-nav" aria-label="Main navigation">
           {items.map((item) => (
-            <NavItem key={item.to} item={item} />
+            <NavItem key={item.to} item={item} unreadCount={unreadCount} />
           ))}
         </nav>
         <div className="rail-end">
@@ -278,17 +290,17 @@ function SiteShell({ user, children }) {
       </main>
       <nav className="bottom-nav" aria-label="Mobile navigation">
         {items.length <= 4 ? (
-          items.map((item) => <NavItem key={item.to} item={item} />)
+          items.map((item) => <NavItem key={item.to} item={item} unreadCount={unreadCount} />)
         ) : (
           <>
             {items.slice(0, 4).map((item) => (
-              <NavItem key={item.to} item={item} />
+              <NavItem key={item.to} item={item} unreadCount={unreadCount} />
             ))}
             <details className="mobile-more">
               <summary className="nav-link">More</summary>
               <div className="more-popover">
                 {items.slice(4).map((item) => (
-                  <NavItem key={item.to} item={item} />
+                  <NavItem key={item.to} item={item} unreadCount={unreadCount} />
                 ))}
               </div>
             </details>
@@ -361,6 +373,9 @@ function AppRoutes() {
         </Route>
         <Route element={<Protected role={["MANAGER", "ADMIN"]} />}>
           <Route path="/reports" element={<ReportsPage />} />
+        </Route>
+        <Route element={<Protected role={["EMPLOYEE", "MANAGER"]} />}>
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

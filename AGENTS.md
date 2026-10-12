@@ -38,6 +38,8 @@
   - Managers can only view/edit/approve goals belonging to their direct reports (`User.managerId`).
   - Admins can unlock locked goals but must provide an audit justification note.
   - Employees cannot modify goals once submitted unless sent back for rework.
+- Managers rebalance submitted or returned goal weights through one serializable batch update. Every changed goal is audited, and the full plan must still total 100%; approved and locked weights stay fixed.
+- Employee and manager notifications are recipient-scoped. Create them in the same transaction as the audited business action, and audit read-state mutations.
 
 ## Sensitive Files & Configuration
 - `server/.env` contains sensitive database connection strings and JWT signing secrets. **Never commit `.env` files.** Always configure from `server/.env.example`.

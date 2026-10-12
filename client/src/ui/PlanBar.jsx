@@ -45,20 +45,24 @@ export function PlanBar({
   return (
     <div role="group" aria-label={label}>
       {ghost?.length > 0 && (
-        <div
-          className="plan-track plan-ghost"
-          role="img"
-          aria-label="Last saved weights"
-        >
-          {ghost.map((goal) => (
-            <div
-              key={goal.id}
-              className="plan-segment"
-              data-status={goal.status}
-              style={{ width: `${goal.weightage}%` }}
-            />
-          ))}
-        </div>
+        <>
+          <p className="plan-layer-label">Last saved weights</p>
+          <div
+            className="plan-track plan-ghost"
+            role="img"
+            aria-label="Last saved weights"
+          >
+            {ghost.map((goal) => (
+              <div
+                key={goal.id}
+                className="plan-segment"
+                data-status={goal.status}
+                style={{ width: `${goal.weightage}%` }}
+              />
+            ))}
+          </div>
+          <p className="plan-layer-label">Unsaved adjustment</p>
+        </>
       )}
       <div className={`plan-track ${animate ? "plan-enter" : ""}`} ref={track} style={{ position: "relative" }}>
         {goals.map((goal,index) => {

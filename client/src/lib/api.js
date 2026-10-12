@@ -68,6 +68,9 @@ export const api = {
     apiClient.get("/manager/goals").then(({ data }) => data.goals),
   managerUpdate: (id, body) =>
     apiClient.patch(`/manager/goals/${id}`, body).then(({ data }) => data.goal),
+  rebalanceManagerPlan: (employeeId, changes) =>
+    apiClient.put(`/manager/employees/${employeeId}/weights`, { changes })
+      .then(({ data }) => data.goals),
   approveGoal: (id) =>
     apiClient
       .post(`/manager/goals/${id}/approve`)
@@ -99,6 +102,13 @@ export const api = {
       .then(({ data }) => data.goal),
   audit: () =>
     apiClient.get("/admin/audit-logs").then(({ data }) => data.auditLogs),
+  notifications: (cursor) =>
+    apiClient.get("/notifications", { params: { limit: 20, ...(cursor ? { cursor } : {}) } })
+      .then(({ data }) => data),
+  markNotificationRead: (id) =>
+    apiClient.patch(`/notifications/${id}/read`, {}).then(({ data }) => data.notification),
+  markAllNotificationsRead: () =>
+    apiClient.post("/notifications/read-all", {}).then(({ data }) => data.updatedCount),
   report: (params) =>
     apiClient
       .get("/reports/dashboard", { params })

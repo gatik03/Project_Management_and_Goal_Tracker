@@ -14,6 +14,124 @@ import {
 import { Dialog } from "../../ui/Overlay";
 import { PlanBar } from "../../ui/PlanBar";
 
+const editableStates = new Set(["SUBMITTED", "REWORK_REQUIRED"]);
+
+function WeightEditor({ person }) {
+  const cache = useQueryClient();
+  const toast = useToast();
+  const goals = person.goals;
+  const [values, setValues] = useState(() => Object.fromEntries(
+    goals.map((goal) => [goal.id, String(goal.weightage)])
+  ));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const editable = goals.filter((goal) => editableStates.has(goal.status));
+  const visibleTotal = goals.reduce((sum, goal) => sum + goal.weightage, 0);
+  const ready = visibleTotal === 100 && editable.length >= 2;
+  const total = goals.reduce((sum, goal) => sum + Number(values[goal.id]), 0);
+  const changes = goals.filter((goal) => Number(values[goal.id]) !== goal.weightage);
+  const valid = goals.every((goal) => {
+    const next = Number(values[goal.id]);
+    return values[goal.id] !== "" && Number.isInteger(next) && next >= 10 && next <= 100 &&
+      (next - goal.weightage) % 5 === 0;
+  });
+  const canSave = ready && changes.length >= 2 && valid && total === 100 && !busy;
+  const displayGoals = goals.map((goal) => ({
+    ...goal,
+    weightage: valid ? Number(values[goal.id]) : goal.weightage
+  }));
+
+  function fromBar(nextGoals) {
+    setValues(Object.fromEntries(nextGoals.map((goal) => [goal.id, String(goal.weightage)])));
+    setError("");
+  }
+
+  async function save() {
+    if (!canSave) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.rebalanceManagerPlan(person.employee.id, changes.map((goal) => ({
+        goalId: goal.id,
+        weightage: Number(values[goal.id]),
+        expectedUpdatedAt: goal.updatedAt
+      })));
+      await cache.invalidateQueries({ queryKey: ["manager-goals"] });
+      toast("Goal weights saved. The employee was notified.");
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="panel panel-pad" aria-label={`Weights for ${person.employee.name}`}>
+      <div className="page-header compact-header">
+        <div>
+          <h2>{person.employee.name}&apos;s plan</h2>
+          <p className="muted small">
+            {person.employee.title}, {person.employee.department}. {ready
+              ? "Move a boundary or edit two weights, then save the 100% plan."
+              : "Only submitted or returned goals appear here. Rebalancing opens when the visible plan totals 100%."}
+          </p>
+        </div>
+        <span className="display-num">{total}%</span>
+      </div>
+      <PlanBar
+        goals={displayGoals}
+        ghost={changes.length ? goals : undefined}
+        label={`Rebalance ${person.employee.name}'s plan`}
+        onChange={ready ? fromBar : undefined}
+        canMove={(left, right) => editableStates.has(left.status) && editableStates.has(right.status)}
+      />
+      <div className="weight-fields">
+        {goals.map((goal) => (
+          <Field key={goal.id} label={`${goal.title} weight`}>
+            <span className="weight-input-wrap">
+              <Input
+                type="number" inputMode="numeric"
+                min={goal.weightage - Math.floor((goal.weightage - 10) / 5) * 5}
+                max={goal.weightage + Math.floor((100 - goal.weightage) / 5) * 5}
+                step="5"
+                name={`weight-${goal.id}`} autoComplete="off"
+                value={values[goal.id]}
+                disabled={!ready || !editableStates.has(goal.status) || busy}
+                onChange={(event) => {
+                  setValues((current) => ({ ...current, [goal.id]: event.target.value }));
+                  setError("");
+                }}
+              />
+              <span aria-hidden="true">%</span>
+            </span>
+          </Field>
+        ))}
+      </div>
+      <p className="help-text">
+        {!ready
+          ? "Ask the employee to submit a complete plan before changing weights. At least two editable goals are needed; approved goals stay locked."
+          : total !== 100
+            ? `Adjust ${Math.abs(100 - total)}% ${total < 100 ? "more" : "less"} before saving.`
+            : changes.length === 1
+              ? "Change a second goal to keep the total at 100%."
+              : "Changes move in 5% steps. Approved and locked goals cannot change."}
+      </p>
+      {!valid && <p className="field-error" role="alert">Use whole numbers from 10% to 100%, changing each weight in 5% steps.</p>}
+      {error && <p className="error-text" role="alert">{error}</p>}
+      <div className="button-row space-before-sm">
+        <Button variant="primary" disabled={!canSave} onClick={save}>Save weights</Button>
+        {changes.length > 0 && (
+          <Button disabled={busy} onClick={() => {
+            setValues(Object.fromEntries(goals.map((goal) => [goal.id, String(goal.weightage)])));
+            setError("");
+          }}>Reset</Button>
+        )}
+        {error && <Button disabled={busy} onClick={() => cache.invalidateQueries({ queryKey: ["manager-goals"] })}>Refresh plan</Button>}
+      </div>
+    </section>
+  );
+}
+
 function ReviewGoal({ goal, onUpdated }) {
   const toast = useToast();
   const [target, setTarget] = useState(goal.target),
@@ -215,8 +333,6 @@ export default function TeamPage() {
         </Button>
       </div>
     );
-  const total =
-    selected?.goals.reduce((sum, goal) => sum + goal.weightage, 0) ?? 0;
   return (
     <>
       <div className="page-header">
@@ -267,7 +383,7 @@ export default function TeamPage() {
                     <span>
                       <strong>{person.employee.name}</strong>
                       <small>
-                        {person.employee.department}, {weight}% weighted
+                        {person.employee.department}, {weight}% shown
                       </small>
                     </span>
                     <span className="team-pending">{count} pending</span>
@@ -277,23 +393,10 @@ export default function TeamPage() {
             </div>
           </aside>
           <div className="workspace">
-            <section className="panel panel-pad">
-              <div className="page-header">
-                <div>
-                  <h2>{selected.employee.name}</h2>
-                  <p className="muted">
-                    {selected.employee.title}, {selected.employee.department}
-                  </p>
-                </div>
-                <span className="display-num">{total}%</span>
-              </div>
-              <PlanBar goals={selected.goals} ghost={selected.goals} />
-              <p className="help-text space-before-sm">
-                Weights are part of the employee’s 100% plan. To change the
-                balance, send a goal back with a note so they can rebalance and
-                resubmit it.
-              </p>
-            </section>
+            <WeightEditor
+              key={`${selected.employee.id}:${selected.goals.map((goal) => goal.updatedAt).join(":")}`}
+              person={selected}
+            />
             <section className="space-before-section">
               <h2 className="section-title">Goals to review</h2>
               <div className="panel review-goals">
